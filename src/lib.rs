@@ -13,6 +13,7 @@ mod block_info;
 mod block_allocator;
 mod line_allocator;
 mod rc_collector;
+mod immix_collector;
 mod stack;
 mod posix;
 
@@ -39,6 +40,8 @@ impl RCImmixCons {
     pub fn collect(&mut self) {
         let roots = stack::enumerate_roots(&self.line_allocator);
         self.rc_collector.collect(&mut self.line_allocator, roots.as_slice());
+        immix_collector::ImmixCollector::collect(&mut self.line_allocator,
+                                                 roots.as_slice());
     }
 
     pub fn write_barrier(&mut self, object: *mut GCObject) {
