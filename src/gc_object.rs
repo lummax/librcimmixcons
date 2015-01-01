@@ -41,6 +41,17 @@ impl GCObject {
         }
     }
 
+    pub fn object_size(&self) -> uint {
+        return self.header.object_size as uint;
+    }
+
+    pub fn children(&mut self) -> Vec<*mut GCObject> {
+        let base: *const *mut GCObject = unsafe{ mem::transmute(&self.vmt_pointer) };
+        return range(1, self.header.variables + 1)
+               .map(|i| unsafe{ *base.offset(i as int) })
+               .collect();
+    }
+
     pub fn decrement(&mut self) -> bool {
         self.header.reference_count = Int::saturating_sub(self.header.reference_count, 1);
         debug!("Decrement object {:p} to {}", self, self.header.reference_count);
@@ -57,6 +68,7 @@ impl GCObject {
         }
         return false;
     }
+
     pub fn set_logged(&mut self, new: bool) -> bool {
         debug!("Set object {:p} logged={}", self, new);
         let logged = self.header.logged;
@@ -66,17 +78,6 @@ impl GCObject {
 
     pub fn spans_lines(&self) -> bool {
         return self.header.spans_lines;
-    }
-
-    pub fn object_size(&self) -> uint {
-        return self.header.object_size as uint;
-    }
-
-    pub fn children(&mut self) -> Vec<*mut GCObject> {
-        let base: *const *mut GCObject = unsafe{ mem::transmute(&self.vmt_pointer) };
-        return range(1, self.header.variables + 1)
-               .map(|i| unsafe{ *base.offset(i as int) })
-               .collect();
     }
 }
 
