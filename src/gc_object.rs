@@ -76,6 +76,17 @@ impl GCObject {
         return logged;
     }
 
+    pub fn set_marked(&mut self, new: bool) -> bool {
+        debug!("Set object {:p} marked={}", self, new);
+        let marked = self.header.marked;
+        self.header.marked = new;
+        return marked;
+    }
+
+    pub fn is_marked(&self) -> bool {
+        return self.header.marked;
+    }
+
     pub fn spans_lines(&self) -> bool {
         return self.header.spans_lines;
     }
