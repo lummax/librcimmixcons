@@ -26,6 +26,18 @@ impl LineAllocator {
         };
     }
 
+    pub fn set_gc_object(&mut self, object: *mut GCObject) {
+        self.object_map.insert(object);
+    }
+
+    pub fn unset_gc_object(&mut self, object: *mut GCObject) {
+        self.object_map.remove(&object);
+    }
+
+    pub fn clear_object_map(&mut self) {
+        self.object_map.clear();
+    }
+
     pub fn is_gc_object(&self, object: *mut GCObject) -> bool {
         return self.object_map.contains(&object);
     }
@@ -41,7 +53,7 @@ impl LineAllocator {
             Some((block, low, high)) => {
                 self.current_block = Some((block, low + size as u16, high));
                 let object = unsafe { (*block).offset(low as uint) };
-                self.object_map.insert(object);
+                self.set_gc_object(object);
                 unsafe { ptr::write(object, GCObject::new(size, variables)); }
                 debug!("Allocated object {} of size {} in {}", object, size, block);
                 Some(object)
