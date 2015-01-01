@@ -74,28 +74,35 @@ impl BlockInfo {
                    .unwrap_or(false);
     }
 
-    fn update_line_nums<F>(&mut self, object: *const GCObject, newval: u8,
-                           f: F) where F: Fn(u8, u8) -> u8 {
+    fn update_line_nums(&mut self, object: *const GCObject, increment: bool) {
         // This calculates how many lines are affected starting from a
         // LINE_SIZE aligned address. So it might not mark enough lines. But
         // that does not matter as we always skip a line in scan_block()
         let line_num = BlockInfo::object_to_line_num(object);
         let object_size = unsafe{ (*object).object_size() };
         for line in range(line_num, line_num + (object_size / LINE_SIZE) + 1) {
-            self.line_counter.update(line, newval, |x, y| f(x, y));
-            debug!("Change line count for line {} to {}", line,
-                   self.line_counter.get(&line).unwrap());
+            match increment {
+                true => {
+                    self.line_counter.update(line, 1, |o, n| o + n);
+                    debug!("Incremented line count for line {} to {}", line,
+                           self.line_counter.get(&line).unwrap());
+                },
+                false => {
+                    self.line_counter.update(line, 0,
+                                             |o, _| Int::saturating_sub(o, 1));
+                    debug!("Decremented line count for line {} to {}", line,
+                           self.line_counter.get(&line).unwrap());
+                }
+            }
         }
     }
 
     pub fn increment_lines(&mut self, object: *const GCObject) {
-        debug!("Increment lines in block {:p}", self);
-        self.update_line_nums(object, 1, |old, new| old + new);
+        self.update_line_nums(object, true);
     }
 
     pub fn decrement_lines(&mut self, object: *const GCObject) {
-        debug!("Decrement lines in block {:p}", self);
-        self.update_line_nums(object, 0, |old, _| Int::saturating_sub(old, 1));
+        self.update_line_nums(object, false);
     }
 
     pub fn clear_line_counts(&mut self) {
