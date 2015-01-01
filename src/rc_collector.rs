@@ -92,6 +92,7 @@ impl RCCollector {
                 Some(object) => {
                     debug!("Process object {} in dec buffer", object);
                     if unsafe{ (*object).decrement() } {
+                        line_allocator.unset_gc_object(object);
                         line_allocator.decrement_lines(object);
                         for child in unsafe{ (*object).children() }.into_iter() {
                             self.decrement(child);
