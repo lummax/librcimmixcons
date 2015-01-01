@@ -24,11 +24,12 @@ Status
 This is not usable an the moment. Major TODOs are:
 
 - TESTING
-- Implement backup tracing immix collector
-- Optimize `GCHeader` fields and use limited reference count bits
 - Implement opportunistic proactive and reactive defragmentation
+- Implement the overflow allocator for medium sized objects
 - Implement a Large-Object-Space
+- Optimize `GCHeader` fields and use limited reference count bits
 - Implement multi-threading (only single-thread applications are supported right now)
+- Improve performance
 
 Building
 --------
