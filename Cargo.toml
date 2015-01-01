@@ -1,0 +1,15 @@
+[package]
+name = "rcimmixcons"
+version = "0.0.1"
+authors = ["lummax <luogpg@googlemail.com>"]
+
+[profile.release]
+opt-level = 1
+
+[dependencies]
+glob = "*"
+
+[lib]
+name = "rcimmixcons"
+doctest = false
+crate-type = ["lib", "dylib"]
