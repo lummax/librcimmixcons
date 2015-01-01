@@ -1,4 +1,4 @@
-use std::collections::{Bitv, VecMap};
+use std::collections::VecMap;
 use std::num::Int;
 use std::{os, mem};
 
@@ -8,7 +8,6 @@ use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 pub struct BlockInfo {
     mmap: os::MemoryMap,
     line_counter: VecMap<u8>,
-    line_map: Bitv,
 }
 
 impl BlockInfo {
@@ -17,7 +16,6 @@ impl BlockInfo {
         return BlockInfo {
             mmap: mmap,
             line_counter: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
-            line_map: Bitv::from_elem(NUM_LINES_PER_BLOCK, false),
         }
     }
 
@@ -62,18 +60,6 @@ impl BlockInfo {
         return (object as uint % BLOCK_SIZE) / LINE_SIZE;
     }
 
-    pub fn set_line_mark(&mut self, object: *const GCObject, mark: bool) {
-        let line_num = BlockInfo::object_to_line_num(object);
-        self.line_map.set(line_num, mark);
-        debug!("Set line {} in block {:p}", mark, self);
-    }
-
-    pub fn get_line_mark(&self, object: *const GCObject) -> bool {
-        return self.line_map
-                   .get(BlockInfo::object_to_line_num(object))
-                   .unwrap_or(false);
-    }
-
     fn update_line_nums(&mut self, object: *const GCObject, increment: bool) {
         // This calculates how many lines are affected starting from a
         // LINE_SIZE aligned address. So it might not mark enough lines. But
@@ -107,7 +93,6 @@ impl BlockInfo {
 
     pub fn clear_line_counts(&mut self) {
         self.line_counter.clear();
-        self.line_map.clear();
     }
 
     pub fn is_empty(&self) -> bool {
