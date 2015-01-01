@@ -123,5 +123,13 @@ impl LineAllocator {
             let block_ptr = self.get_block_ptr(object);
             (*block_ptr).increment_lines(object);
         }
+
+    pub fn clear_line_counts(&mut self) {
+        // This will only be called after the RCCollector did his work and
+        // self.return_empty_blocks() was invoked. So every managed block is
+        // in self.recyclable_blocks.
+        for block in self.recyclable_blocks.iter_mut() {
+            unsafe{ (**block).clear_line_counts(); }
+        }
     }
 }

@@ -98,6 +98,11 @@ impl BlockInfo {
         self.update_line_nums(object, 0, |old, _| Int::saturating_sub(old, 1));
     }
 
+    pub fn clear_line_counts(&mut self) {
+        self.line_counter.clear();
+        self.line_map.clear();
+    }
+
     pub fn is_empty(&self) -> bool {
         return self.line_counter.values().all(|v| *v == 0);
     }
