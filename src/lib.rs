@@ -37,7 +37,8 @@ impl RCImmixCons {
     }
 
     pub fn collect(&mut self) {
-        self.rc_collector.collect(&mut self.line_allocator);
+        let roots = stack::enumerate_roots(&self.line_allocator);
+        self.rc_collector.collect(&mut self.line_allocator, roots.as_slice());
     }
 
     pub fn write_barrier(&mut self, object: *mut GCObject) {

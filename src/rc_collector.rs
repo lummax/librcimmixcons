@@ -2,7 +2,6 @@ use std::collections::RingBuf;
 
 use gc_object::GCObject;
 use line_allocator::LineAllocator;
-use stack;
 
 pub struct RCCollector {
     old_root_buffer: RingBuf<*mut GCObject>,
@@ -19,10 +18,11 @@ impl RCCollector {
         };
     }
 
-    pub fn collect(&mut self, line_allocator: &mut LineAllocator) {
+    pub fn collect(&mut self, line_allocator: &mut LineAllocator,
+                   roots: &[*mut GCObject]) {
         debug!("Start RC collection");
         self.process_old_roots();
-        self.process_current_roots(line_allocator);
+        self.process_current_roots(line_allocator, roots);
         self.process_mod_buffer(line_allocator);
         self.process_decrement_buffer(line_allocator);
         debug!("Sweep and return empty blocks (RC)");
@@ -61,10 +61,10 @@ impl RCCollector {
         self.decrement_buffer.extend(self.old_root_buffer.drain());
     }
 
-    fn process_current_roots(&mut self, line_allocator: &mut LineAllocator) {
-        let roots = stack::enumerate_roots(line_allocator);
+    fn process_current_roots(&mut self, line_allocator: &mut LineAllocator,
+                             roots: &[*mut GCObject]) {
         debug!("Process current roots (size {})", roots.len());
-        for root in roots.into_iter() {
+        for root in roots.iter().map(|o| *o) {
             debug!("Process root object: {}", root);
             self.increment(line_allocator, root);
             self.old_root_buffer.push_back(root);
