@@ -112,17 +112,12 @@ impl LineAllocator {
     }
 
     pub fn decrement_lines(&mut self, object: *mut GCObject) {
-        unsafe{
-            let block_ptr = self.get_block_ptr(object);
-            (*block_ptr).decrement_lines(object);
-        }
+        unsafe{ (*self.get_block_ptr(object)).decrement_lines(object); }
     }
 
     pub fn increment_lines(&mut self, object: *mut GCObject) {
-        unsafe{
-            let block_ptr = self.get_block_ptr(object);
-            (*block_ptr).increment_lines(object);
-        }
+        unsafe{ (*self.get_block_ptr(object)).increment_lines(object); }
+    }
 
     pub fn clear_line_counts(&mut self) {
         // This will only be called after the RCCollector did his work and
