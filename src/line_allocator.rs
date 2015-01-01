@@ -91,18 +91,19 @@ impl LineAllocator {
     }
 
     pub fn return_empty_blocks(&mut self) {
-        if let Some((block, _, _)) = self.current_block.take() {
-            self.unavailable_blocks.push_back(block);
-        }
-        for block in self.unavailable_blocks.drain() {
+        let mut recyclable_blocks = RingBuf::new();
+        for block in self.current_block.take().map(|(b, _, _)| b).into_iter()
+                         .chain(self.recyclable_blocks.drain())
+                         .chain(self.unavailable_blocks.drain()) {
             if unsafe{ (*block).is_empty() } {
                 debug!("Return block {:p} to global block allocator", block);
                 self.block_allocator.return_block(block);
             } else {
                 debug!("Recycle block {:p}", block);
-                self.recyclable_blocks.push_back(block);
+                recyclable_blocks.push_back(block);
             }
         }
+        self.recyclable_blocks.extend(recyclable_blocks.into_iter());
     }
 
     unsafe fn get_block_ptr(&mut self, object: *mut GCObject) -> *mut BlockInfo {
