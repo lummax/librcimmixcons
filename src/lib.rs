@@ -37,10 +37,7 @@ impl RCImmixCons {
     }
 
     pub fn collect(&mut self) {
-        debug!("Start RC collection");
         self.rc_collector.collect(&mut self.line_allocator);
-        debug!("Sweep and return empty blocks");
-        self.line_allocator.return_empty_blocks();
     }
 
     pub fn write_barrier(&mut self, object: *mut GCObject) {
