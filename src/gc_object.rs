@@ -25,7 +25,7 @@ pub struct GCObject {
 }
 
 impl GCObject {
-    pub fn new(size: uint, variables: uint) -> GCObject {
+    pub fn new(size: uint, variables: uint, mark: bool) -> GCObject {
         return GCObject {
             header: GCHeader {
                 object_size: size as libc::size_t,
@@ -34,7 +34,7 @@ impl GCObject {
                 spans_lines: size > LINE_SIZE,
                 forwarded: false,
                 logged: false,
-                marked: false,
+                marked: mark,
                 new: true,
             },
             vmt_pointer: ptr::null_mut(),
@@ -76,15 +76,15 @@ impl GCObject {
         return logged;
     }
 
-    pub fn set_marked(&mut self, new: bool) -> bool {
-        debug!("Set object {:p} marked={}", self, new);
+    pub fn set_marked(&mut self, current: bool) -> bool {
+        debug!("Set object {:p} marked={}", self, current);
         let marked = self.header.marked;
-        self.header.marked = new;
-        return marked;
+        self.header.marked = current;
+        return marked != current;
     }
 
-    pub fn is_marked(&self) -> bool {
-        return self.header.marked;
+    pub fn is_marked(&self, current: bool) -> bool {
+        return self.header.marked != current;
     }
 
     pub fn spans_lines(&self) -> bool {

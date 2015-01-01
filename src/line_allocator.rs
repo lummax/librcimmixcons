@@ -13,6 +13,7 @@ pub struct LineAllocator {
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
     current_block: Option<(*mut BlockInfo, u16, u16)>,
+    current_live_mark: bool,
 }
 
 impl LineAllocator {
@@ -23,6 +24,7 @@ impl LineAllocator {
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
             current_block: None,
+            current_live_mark: true,
         };
     }
 
@@ -54,7 +56,10 @@ impl LineAllocator {
                 self.current_block = Some((block, low + size as u16, high));
                 let object = unsafe { (*block).offset(low as uint) };
                 self.set_gc_object(object);
-                unsafe { ptr::write(object, GCObject::new(size, variables)); }
+                unsafe {
+                    ptr::write(object, GCObject::new(size, variables,
+                                                     self.current_live_mark));
+                }
                 debug!("Allocated object {} of size {} in {}", object, size, block);
                 Some(object)
             }
@@ -129,6 +134,14 @@ impl LineAllocator {
 
     pub fn increment_lines(&mut self, object: *mut GCObject) {
         unsafe{ (*self.get_block_ptr(object)).increment_lines(object); }
+    }
+
+    pub fn current_live_mark(&self) -> bool {
+        return self.current_live_mark;
+    }
+
+    pub fn invert_live_mark(&mut self) {
+        self.current_live_mark = !self.current_live_mark;
     }
 
     pub fn clear_line_counts(&mut self) {
