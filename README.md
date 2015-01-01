@@ -26,6 +26,8 @@ This is not usable an the moment. Major TODOs are:
 - TESTING
 - Implement backup tracing immix collector
 - Optimize `GCHeader` fields and use limited reference count bits
+- Implement opportunistic proactive and reactive defragmentation
+- Implement a Large-Object-Space
 - Implement multi-threading (only single-thread applications are supported right now)
 
 Building
