@@ -16,10 +16,12 @@ pub struct BlockInfo {
 impl BlockInfo {
     pub fn new(mmap: os::MemoryMap) -> BlockInfo {
         debug_assert!(mmap.len() > mem::size_of::<BlockInfo>());
-        return BlockInfo {
+        let mut block = BlockInfo {
             mmap: mmap,
             line_counter: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
-        }
+        };
+        block.clear_line_counts();
+        return block;
     }
 
     pub fn into_memory_map(self) -> os::MemoryMap {
@@ -95,11 +97,25 @@ impl BlockInfo {
     }
 
     pub fn clear_line_counts(&mut self) {
-        self.line_counter.clear();
+        for index in range(0, NUM_LINES_PER_BLOCK) {
+            self.line_counter.insert(index, 0);
+        }
     }
 
     pub fn is_empty(&self) -> bool {
         return self.line_counter.values().all(|v| *v == 0);
+    }
+
+    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
+        let (holes, _, marked_lines) = self.line_counter.values()
+            .fold((0, false, 0), |(holes, in_hole, marked_lines), &elem|
+                  match (in_hole, elem) {
+                    (true, 0) => (holes, true, marked_lines),
+                    (true, _) => (holes, false, marked_lines + 1),
+                    (false, 0) => (holes + 1, true, marked_lines),
+                    (false, _) => (holes, false, marked_lines + 1),
+                  });
+        return (holes, marked_lines);
     }
 }
 
