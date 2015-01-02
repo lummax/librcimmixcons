@@ -9,6 +9,7 @@ use std::mem;
 use constants::LINE_SIZE;
 
 #[repr(C)]
+#[allow(missing_copy_implementations)]
 pub struct GCHeader {
     object_size: libc::size_t,
     variables: libc::size_t,
