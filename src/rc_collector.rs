@@ -42,7 +42,7 @@ impl RCCollector {
     }
 
     fn modified(&mut self, object: *mut GCObject) {
-        debug!("Push object{} into mod buffer", object);
+        debug!("Push object {} into mod buffer", object);
         self.modified_buffer.push_back(object);
     }
 

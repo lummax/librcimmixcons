@@ -28,6 +28,7 @@ pub struct GCObject {
 
 impl GCObject {
     pub fn new(size: uint, variables: uint, mark: bool) -> GCObject {
+        debug!("GCobject::new(size={}, variables={}, mark={}", size, variables, mark);
         return GCObject {
             header: GCHeader {
                 object_size: size as libc::size_t,
