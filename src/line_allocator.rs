@@ -1,18 +1,19 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::{RingBuf, HashSet};
+use std::collections::{RingBuf, HashSet, VecMap};
 use std::mem;
 use std::ptr;
 
 use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
-use constants::{BLOCK_SIZE, LINE_SIZE};
+use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 use gc_object::{GCObject, GCRTTI};
 
 pub struct LineAllocator {
     block_allocator: BlockAllocator,
     object_map: HashSet<*mut GCObject>,
+    mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
     current_block: Option<(*mut BlockInfo, u16, u16)>,
@@ -25,6 +26,7 @@ impl LineAllocator {
         return LineAllocator {
             block_allocator: block_allocator,
             object_map: HashSet::new(),
+            mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
             current_block: None,
@@ -124,6 +126,7 @@ impl LineAllocator {
     }
 
     pub fn return_empty_blocks(&mut self) {
+        self.mark_histogram.clear();
         let mut recyclable_blocks = RingBuf::new();
         let mut unavailable_blocks = RingBuf::new();
         for block in self.current_block.take().map(|(b, _, _)| b).into_iter()
@@ -134,6 +137,7 @@ impl LineAllocator {
                 self.block_allocator.return_block(block);
             } else {
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
+                self.mark_histogram.update(holes as uint, marked_lines, |o, n| o + n);
                 debug!("Found {} holes and {} marked lines in block {}",
                        holes, marked_lines, block);
                 match holes {
