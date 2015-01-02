@@ -125,7 +125,7 @@ impl LineAllocator {
                    .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }
 
-    pub fn return_empty_blocks(&mut self) {
+    pub fn complete_collection(&mut self) {
         self.mark_histogram.clear();
         let mut recyclable_blocks = RingBuf::new();
         let mut unavailable_blocks = RingBuf::new();

@@ -28,8 +28,8 @@ impl RCCollector {
         self.process_current_roots(line_allocator, roots);
         self.process_mod_buffer(line_allocator);
         self.process_decrement_buffer(line_allocator);
-        debug!("Sweep and return empty blocks (RC)");
-        line_allocator.return_empty_blocks();
+        debug!("Complete collection");
+        line_allocator.complete_collection();
     }
 
     pub fn write_barrier(&mut self, object: *mut GCObject) {

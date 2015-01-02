@@ -36,8 +36,8 @@ impl ImmixCollector {
                 }
             }
         }
+        debug!("Complete collection");
         line_allocator.invert_live_mark();
-        debug!("Sweep and return empty blocks (Immix)");
-        line_allocator.return_empty_blocks();
+        line_allocator.complete_collection();
     }
 }
