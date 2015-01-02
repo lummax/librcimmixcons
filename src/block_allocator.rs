@@ -1,3 +1,6 @@
+// Copyright (c) <2015> <lummax>
+// Licensed under MIT (http://opensource.org/licenses/MIT)
+
 use std::{os, ptr};
 
 use block_info::BlockInfo;

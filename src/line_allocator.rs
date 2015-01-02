@@ -1,3 +1,6 @@
+// Copyright (c) <2015> <lummax>
+// Licensed under MIT (http://opensource.org/licenses/MIT)
+
 use std::collections::{RingBuf, HashSet};
 use std::mem;
 use std::ptr;
@@ -116,6 +119,8 @@ impl LineAllocator {
                 debug!("Return block {:p} to global block allocator", block);
                 self.block_allocator.return_block(block);
             } else {
+                // XXX online if there is actually a hole. otherwise push into
+                // XXX unavailable_blocks
                 debug!("Recycle block {:p}", block);
                 recyclable_blocks.push_back(block);
             }
