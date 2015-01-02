@@ -21,6 +21,7 @@ CompositeObject* build_object(RCImmixCons* collector) {
     printf("(mutator) Address of simple_object_a: %p\n", simple_object_a);
     printf("(mutator) Address of simple_object_b: %p\n", simple_object_b);
     printf("(mutator) Address of composite_object: %p\n", composite_object);
+    fflush(stdout);
     composite_object->attr_a = simple_object_a;
     composite_object->attr_b = simple_object_b;
     return composite_object;

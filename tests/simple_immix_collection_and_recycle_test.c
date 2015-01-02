@@ -18,6 +18,7 @@ void build_object(RCImmixCons* collector) {
     printf("(mutator) Address of new_cicle_object_a: %p\n", new_cicle_object_a);
     printf("(mutator) Address of new_cicle_object_b: %p\n", new_cicle_object_b);
     printf("(mutator) Address of new_cicle_object_c: %p\n", new_cicle_object_b);
+    fflush(stdout);
     new_cicle_object_a->next = new_cicle_object_b;
     new_cicle_object_b->next = new_cicle_object_c;
     new_cicle_object_c->next = new_cicle_object_a;

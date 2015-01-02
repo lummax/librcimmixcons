@@ -19,6 +19,7 @@ void change_object(RCImmixCons* collector, CompositeObject* object) {
     SimpleObject* new_simple_object_b = (SimpleObject*) rcx_allocate(collector, sizeof(SimpleObject), 0);
     printf("(mutator) Address of new_simple_object_a: %p\n", new_simple_object_a);
     printf("(mutator) Address of new_simple_object_b: %p\n", new_simple_object_b);
+    fflush(stdout);
     object->attr_a = new_simple_object_a;
     object->attr_b = new_simple_object_b;
 }
@@ -27,6 +28,7 @@ CompositeObject* build_object(RCImmixCons* collector) {
     CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, sizeof(CompositeObject), 2);
     change_object(collector, composite_object);
     printf("(mutator) Address of composite_object: %p\n", composite_object);
+    fflush(stdout);
     return composite_object;
 }
 
