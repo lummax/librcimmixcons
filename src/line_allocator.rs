@@ -125,6 +125,7 @@ impl LineAllocator {
 
     pub fn return_empty_blocks(&mut self) {
         let mut recyclable_blocks = RingBuf::new();
+        let mut unavailable_blocks = RingBuf::new();
         for block in self.current_block.take().map(|(b, _, _)| b).into_iter()
                          .chain(self.recyclable_blocks.drain())
                          .chain(self.unavailable_blocks.drain()) {
@@ -132,13 +133,23 @@ impl LineAllocator {
                 debug!("Return block {:p} to global block allocator", block);
                 self.block_allocator.return_block(block);
             } else {
-                // XXX online if there is actually a hole. otherwise push into
-                // XXX unavailable_blocks
-                debug!("Recycle block {:p}", block);
-                recyclable_blocks.push_back(block);
+                let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
+                debug!("Found {} holes and {} marked lines in block {}",
+                       holes, marked_lines, block);
+                match holes {
+                    0 => {
+                        debug!("Push block {:p} into unavailable_blocks", block);
+                        unavailable_blocks.push_back(block);
+                    },
+                    _ => {
+                        debug!("Push block {:p} into recyclable_blocks", block);
+                        recyclable_blocks.push_back(block);
+                    }
+                }
             }
         }
         self.recyclable_blocks.extend(recyclable_blocks.into_iter());
+        self.unavailable_blocks.extend(unavailable_blocks.into_iter());
     }
 
     unsafe fn get_block_ptr(&mut self, object: *mut GCObject) -> *mut BlockInfo {
