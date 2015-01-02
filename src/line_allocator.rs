@@ -27,7 +27,7 @@ impl LineAllocator {
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
             current_block: None,
-            current_live_mark: true,
+            current_live_mark: false,
         };
     }
 

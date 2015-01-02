@@ -81,15 +81,15 @@ impl GCObject {
         return logged;
     }
 
-    pub fn set_marked(&mut self, current: bool) -> bool {
-        debug!("Set object {:p} marked={}", self, current);
+    pub fn set_marked(&mut self, next: bool) -> bool {
+        debug!("Set object {:p} marked={}", self, next);
         let marked = self.header.marked;
-        self.header.marked = !current;
-        return marked == current;
+        self.header.marked = next;
+        return marked == next;
     }
 
-    pub fn is_marked(&self, current: bool) -> bool {
-        return self.header.marked == current;
+    pub fn is_marked(&self, next: bool) -> bool {
+        return self.header.marked == next;
     }
 
     pub fn spans_lines(&self) -> bool {
