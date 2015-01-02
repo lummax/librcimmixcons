@@ -1,6 +1,5 @@
 extern crate libc;
 
-use std::num::Int;
 use std::ptr;
 use std::mem;
 
@@ -53,7 +52,10 @@ impl GCObject {
     }
 
     pub fn decrement(&mut self) -> bool {
-        self.header.reference_count = Int::saturating_sub(self.header.reference_count, 1);
+        if self.header.reference_count == 0 {
+            return false;
+        }
+        self.header.reference_count -= 1;
         debug!("Decrement object {:p} to {}", self, self.header.reference_count);
         return self.header.reference_count == 0;
     }
