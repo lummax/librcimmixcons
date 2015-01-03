@@ -4,9 +4,11 @@
 #include "../src/rcimmixcons.h"
 #include <stdio.h>
 
+static GCRTTI dummyObjectRTTI = {128, 0};
+
 int main() {
     RCImmixCons* collector = rcx_create();
-    GCObject* object = rcx_allocate(collector, 128, 0);
+    GCObject* object = rcx_allocate(collector, &dummyObjectRTTI);
     printf("(mutator) Address of object: %p\n", object);
     fflush(stdout);
     rcx_collect(collector);

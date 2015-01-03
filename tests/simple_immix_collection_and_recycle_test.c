@@ -10,11 +10,12 @@ typedef struct CicleObject {
     int data[16];
 } CicleObject;
 
+static GCRTTI CircleObjectRtti = {sizeof(CicleObject), 1};
 
 void build_object(RCImmixCons* collector) {
-    CicleObject* new_cicle_object_a = (CicleObject*) rcx_allocate(collector, sizeof(CicleObject), 1);
-    CicleObject* new_cicle_object_b = (CicleObject*) rcx_allocate(collector, sizeof(CicleObject), 1);
-    CicleObject* new_cicle_object_c = (CicleObject*) rcx_allocate(collector, sizeof(CicleObject), 1);
+    CicleObject* new_cicle_object_a = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
+    CicleObject* new_cicle_object_b = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
+    CicleObject* new_cicle_object_c = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
     printf("(mutator) Address of new_cicle_object_a: %p\n", new_cicle_object_a);
     printf("(mutator) Address of new_cicle_object_b: %p\n", new_cicle_object_b);
     printf("(mutator) Address of new_cicle_object_c: %p\n", new_cicle_object_b);

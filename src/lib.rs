@@ -7,7 +7,7 @@
 extern crate libc;
 use std::{mem, ptr};
 
-pub use self::gc_object::{GCHeader, GCObject};
+pub use self::gc_object::{GCHeader, GCObject, GCRTTI};
 
 mod macros;
 mod constants;
@@ -34,10 +34,11 @@ impl RCImmixCons {
         };
     }
 
-    pub fn allocate(&mut self, size: uint, variables: uint) -> Option<*mut GCObject>{
+    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject>{
         // XXX use LOS if size > BLOCK_SIZE - LINE_SIZE
-        assert!(size <= (constants::BLOCK_SIZE - constants::LINE_SIZE));
-        return self.line_allocator.allocate(size, variables);
+        assert!(unsafe{ (*rtti).object_size() }
+                <= constants::BLOCK_SIZE - constants::LINE_SIZE);
+        return self.line_allocator.allocate(rtti);
     }
 
     pub fn collect(&mut self) {
@@ -60,12 +61,9 @@ pub extern fn rcx_create() -> *mut RCImmixCons {
 }
 
 #[no_mangle]
-pub extern fn rcx_allocate(this: *mut RCImmixCons, size: libc::size_t,
-                           variables: libc::size_t) -> *mut GCObject {
-    unsafe {
-        return (*this).allocate(size as uint, variables as uint)
-                      .unwrap_or(ptr::null_mut());
-    }
+pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
+    -> *mut GCObject {
+    unsafe { return (*this).allocate(rtti).unwrap_or(ptr::null_mut()); }
 }
 
 #[no_mangle]

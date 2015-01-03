@@ -8,16 +8,20 @@ typedef struct {
     GCObject object;
 } SimpleObject;
 
+static GCRTTI simpleObjectRTTI = {sizeof(SimpleObject), 0};
+
 typedef struct {
     GCObject object;
     SimpleObject* attr_a;
     SimpleObject* attr_b;
 } CompositeObject;
 
+static GCRTTI compositeObjectRTTI = {sizeof(CompositeObject), 2};
+
 CompositeObject* build_object(RCImmixCons* collector) {
-    SimpleObject* simple_object_a = (SimpleObject*) rcx_allocate(collector, sizeof(SimpleObject), 0);
-    SimpleObject* simple_object_b = (SimpleObject*) rcx_allocate(collector, sizeof(SimpleObject), 0);
-    CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, sizeof(CompositeObject), 2);
+    SimpleObject* simple_object_a = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+    SimpleObject* simple_object_b = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+    CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, &compositeObjectRTTI);
     printf("(mutator) Address of simple_object_a: %p\n", simple_object_a);
     printf("(mutator) Address of simple_object_b: %p\n", simple_object_b);
     printf("(mutator) Address of composite_object: %p\n", composite_object);

@@ -3,7 +3,6 @@
 
 extern crate libc;
 
-use std::ptr;
 use std::mem;
 
 use constants::LINE_SIZE;
@@ -11,8 +10,6 @@ use constants::LINE_SIZE;
 #[repr(C)]
 #[allow(missing_copy_implementations)]
 pub struct GCHeader {
-    object_size: libc::size_t,
-    variables: libc::size_t,
     reference_count: libc::size_t,
     spans_lines: bool,
     forwarded: bool,
@@ -22,18 +19,41 @@ pub struct GCHeader {
 }
 
 #[repr(C)]
+#[allow(missing_copy_implementations)]
+pub struct GCRTTI {
+    object_size: libc::size_t,
+    variables: libc::size_t,
+}
+
+#[repr(C)]
 pub struct GCObject {
     header: GCHeader,
-    vmt_pointer: *mut u8,
+    rtti: *const GCRTTI
+}
+
+impl GCRTTI {
+    pub fn new(object_size: uint, variables: uint) -> GCRTTI {
+        return GCRTTI {
+            object_size: object_size as libc::size_t,
+            variables: variables as libc::size_t,
+        };
+    }
+
+    pub fn object_size(&self) -> uint {
+        return self.object_size as uint;
+    }
+
+    pub fn variables(&self) -> uint {
+        return self.variables as uint;
+    }
 }
 
 impl GCObject {
-    pub fn new(size: uint, variables: uint, mark: bool) -> GCObject {
-        debug!("GCobject::new(size={}, variables={}, mark={}", size, variables, mark);
+    pub fn new(rtti: *const GCRTTI, mark: bool) -> GCObject {
+        debug!("GCobject::new(rtti={}, mark={}", rtti, mark);
+        let size = unsafe{ (*rtti).object_size() };
         return GCObject {
             header: GCHeader {
-                object_size: size as libc::size_t,
-                variables: variables as libc::size_t,
                 reference_count: 0,
                 spans_lines: size > LINE_SIZE,
                 forwarded: false,
@@ -41,19 +61,19 @@ impl GCObject {
                 marked: mark,
                 new: true,
             },
-            vmt_pointer: ptr::null_mut(),
+            rtti: rtti,
         }
     }
 
     pub fn object_size(&self) -> uint {
-        return self.header.object_size as uint;
+        return unsafe{ (*self.rtti).object_size() };
     }
 
     pub fn children(&mut self) -> Vec<*mut GCObject> {
-        let base: *const *mut GCObject = unsafe{ mem::transmute(&self.vmt_pointer) };
-        return range(1, self.header.variables + 1)
-               .map(|i| unsafe{ *base.offset(i as int) })
-               .collect();
+        let base: *const *mut GCObject = unsafe{ mem::transmute(&self.rtti) };
+        let variables = unsafe{ (*self.rtti).variables() };
+        return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
+                                      .collect();
     }
 
     pub fn decrement(&mut self) -> bool {

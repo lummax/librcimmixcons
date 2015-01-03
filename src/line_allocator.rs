@@ -8,7 +8,7 @@ use std::ptr;
 use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
 use constants::{BLOCK_SIZE, LINE_SIZE};
-use gc_object::GCObject;
+use gc_object::{GCObject, GCRTTI};
 
 pub struct LineAllocator {
     block_allocator: BlockAllocator,
@@ -47,7 +47,8 @@ impl LineAllocator {
         return self.object_map.contains(&object);
     }
 
-    pub fn allocate(&mut self, size: uint, variables: uint) -> Option<*mut GCObject> {
+    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject> {
+        let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
         let block_tuple = self.current_block
                               .and_then(|tp| self.scan_for_hole(size, tp))
@@ -60,8 +61,7 @@ impl LineAllocator {
                 let object = unsafe { (*block).offset(low as uint) };
                 self.set_gc_object(object);
                 unsafe {
-                    ptr::write(object, GCObject::new(size, variables,
-                                                     self.current_live_mark));
+                    ptr::write(object, GCObject::new(rtti, self.current_live_mark));
                 }
                 debug!("Allocated object {} of size {} in {}", object, size, block);
                 Some(object)

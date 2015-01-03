@@ -8,15 +8,19 @@ typedef struct {
     GCObject object;
 } SimpleObject;
 
+static GCRTTI simpleObjectRTTI = {sizeof(SimpleObject), 0};
+
 typedef struct {
     GCObject object;
     SimpleObject* attr_a;
     SimpleObject* attr_b;
 } CompositeObject;
 
+static GCRTTI compositeObjectRTTI = {sizeof(CompositeObject), 2};
+
 void change_object(RCImmixCons* collector, CompositeObject* object) {
-    SimpleObject* new_simple_object_a = (SimpleObject*) rcx_allocate(collector, sizeof(SimpleObject), 0);
-    SimpleObject* new_simple_object_b = (SimpleObject*) rcx_allocate(collector, sizeof(SimpleObject), 0);
+    SimpleObject* new_simple_object_a = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+    SimpleObject* new_simple_object_b = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
     printf("(mutator) Address of new_simple_object_a: %p\n", new_simple_object_a);
     printf("(mutator) Address of new_simple_object_b: %p\n", new_simple_object_b);
     fflush(stdout);
@@ -25,7 +29,7 @@ void change_object(RCImmixCons* collector, CompositeObject* object) {
 }
 
 CompositeObject* build_object(RCImmixCons* collector) {
-    CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, sizeof(CompositeObject), 2);
+    CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, &compositeObjectRTTI);
     change_object(collector, composite_object);
     printf("(mutator) Address of composite_object: %p\n", composite_object);
     fflush(stdout);

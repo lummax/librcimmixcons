@@ -37,11 +37,12 @@ run_c_file!(simple_immix_collection_and_recycle_test);
 #[allow(unused_variables)]
 fn simple_allocate_test() {
     let mut collector = rcimmixcons::RCImmixCons::new();
-    let chunck1 = collector.allocate(128, 0).unwrap();
-    let chunck2 = collector.allocate(128, 0).unwrap();
-    let chunck3 = collector.allocate(128, 0).unwrap();
-    let chunck4 = collector.allocate(128, 0).unwrap();
-    let chunck5 = collector.allocate(128, 0).unwrap();
+    let rtti = rcimmixcons::GCRTTI::new(128, 0);
+    let chunck1 = collector.allocate(&rtti).unwrap();
+    let chunck2 = collector.allocate(&rtti).unwrap();
+    let chunck3 = collector.allocate(&rtti).unwrap();
+    let chunck4 = collector.allocate(&rtti).unwrap();
+    let chunck5 = collector.allocate(&rtti).unwrap();
     collector.collect();
 }
 
