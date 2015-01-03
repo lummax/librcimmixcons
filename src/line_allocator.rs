@@ -16,6 +16,7 @@ pub struct LineAllocator {
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
     current_block: Option<(*mut BlockInfo, u16, u16)>,
+    overflow_block: Option<(*mut BlockInfo, u16, u16)>,
     current_live_mark: bool,
 }
 
@@ -27,6 +28,7 @@ impl LineAllocator {
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
             current_block: None,
+            overflow_block: None,
             current_live_mark: false,
         };
     }
@@ -50,20 +52,31 @@ impl LineAllocator {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        let block_tuple = self.current_block
-                              .and_then(|tp| self.scan_for_hole(size, tp))
+        let block_tuple = if size < LINE_SIZE {
+            self.current_block.and_then(|tp| self.scan_for_hole(size, tp))
                               .or_else(|| self.scan_recyclables(size))
-                              .or_else(|| self.get_new_block());
+                              .or_else(|| self.get_new_block())
+        } else {
+            self.overflow_block.and_then(|tp| self.scan_for_hole(size, tp))
+                               .or_else(|| self.get_new_block())
+        };
         return match block_tuple {
             None => None,
             Some((block, low, high)) => {
-                self.current_block = Some((block, low + size as u16, high));
                 let object = unsafe { (*block).offset(low as uint) };
                 self.set_gc_object(object);
                 unsafe {
                     ptr::write(object, GCObject::new(rtti, self.current_live_mark));
                 }
-                debug!("Allocated object {} of size {} in {}", object, size, block);
+                if size < LINE_SIZE {
+                    self.current_block = Some((block, low + size as u16, high));
+                    debug!("Allocated object {} of size {} in {}",
+                           object, size, block);
+                } else {
+                    self.overflow_block = Some((block, low + size as u16, high));
+                    debug!("Allocated object {} of size {} in {} (overflow)",
+                           object, size, block);
+                }
                 Some(object)
             }
         };
