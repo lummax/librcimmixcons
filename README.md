@@ -25,7 +25,6 @@ This is not usable an the moment. Major TODOs are:
 
 - TESTING
 - Implement opportunistic proactive and reactive defragmentation
-- Implement the overflow allocator for medium sized objects
 - Implement a Large-Object-Space
 - Optimize `GCHeader` fields and use limited reference count bits
 - Implement multi-threading (only single-thread applications are supported right now)
