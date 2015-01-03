@@ -2,7 +2,7 @@ librcimmixcons [![Build Status](https://travis-ci.org/lummax/librcimimxcons.svg?
 ==============
 
 This is an implementation of the RCImmixCons garbage collector written in the
-Rust Programming Lanuage. For details please refer to:
+Rust Programming Language. For details please refer to:
 
 - S. M. S. Blackburn and K. K. S. McKinley. Immix: a mark-region garbage
   collector with space efficiency, fast collection, and mutator performance.
