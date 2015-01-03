@@ -6,7 +6,7 @@ authors = ["lummax <luogpg@googlemail.com>"]
 [profile.release]
 opt-level = 1
 
-[dependencies]
+[dev-dependencies]
 glob = "*"
 
 [lib]
