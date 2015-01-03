@@ -18,13 +18,13 @@ pub mod setjmp {
     mod arch {
         #[repr(C)]
         pub struct jmp_buf {
-            _data: [u64, ..25]
+            _data: [u64; 25]
         }
     }
 
     #[cfg(target_arch = "x86")]
     mod arch {
-        pub type jmp_buf = [[u32, ..39], ..1];
+        pub type jmp_buf = [[u32; 39]; 1];
     }
 }
 
