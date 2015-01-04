@@ -1,4 +1,4 @@
-librcimmixcons [![Build Status](https://travis-ci.org/lummax/librcimimxcons.svg?branch=master)](https://travis-ci.org/lummax/librcimimxcons)
+librcimmixcons [![Build Status](https://travis-ci.org/lummax/librcimmixcons.svg?branch=master)](https://travis-ci.org/lummax/librcimmixcons)
 ==============
 
 This is an implementation of the RCImmixCons garbage collector written in the
