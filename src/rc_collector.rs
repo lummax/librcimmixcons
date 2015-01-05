@@ -39,7 +39,9 @@ impl RCCollector {
         }
         unsafe{ (*object).set_logged(true); }
     }
+}
 
+impl RCCollector {
     fn modified(&mut self, object: GCObjectRef) {
         debug!("Push object {} into mod buffer", object);
         self.modified_buffer.push_back(object);
