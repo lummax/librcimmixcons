@@ -54,3 +54,17 @@ Using
 
 To include project in your C code include the header file `src/rcimmixcons.h`
 and link against the shared-object file.
+
+Valgrind
+--------
+
+The tool `Memcheck` from `Valgrind` is supported using the macros
+VALGRIND_MALLOCLIKE_BLOCK und VALGRIND_FREELIKE_BLOCK internally. Please build
+using the feature `valgrind`. This is not enabled by default as it introduces
+some overhead do determine freed objects after collection due to how Immix
+works.
+
+```
+cargo build --features "valgrind"
+cargo build --release --features "valgrind"
+```
