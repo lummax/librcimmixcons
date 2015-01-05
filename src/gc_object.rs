@@ -67,15 +67,30 @@ impl GCObject {
         }
     }
 
-    pub fn object_size(&self) -> uint {
-        return unsafe{ (*self.rtti).object_size() };
+    pub fn set_logged(&mut self, new: bool) -> bool {
+        debug!("Set object {:p} logged={}", self, new);
+        let logged = self.header.logged;
+        self.header.logged = new;
+        return logged;
     }
 
-    pub fn children(&mut self) -> Vec<GCObjectRef> {
-        let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
-        let variables = unsafe{ (*self.rtti).variables() };
-        return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
-                                      .collect();
+    pub fn set_marked(&mut self, next: bool) -> bool {
+        debug!("Set object {:p} marked={}", self, next);
+        let marked = self.header.marked;
+        self.header.marked = next;
+        return marked == next;
+    }
+
+    pub fn is_marked(&self, next: bool) -> bool {
+        return self.header.marked == next;
+    }
+
+    pub fn spans_lines(&self) -> bool {
+        return self.header.spans_lines;
+    }
+
+    pub fn object_size(&self) -> uint {
+        return unsafe{ (*self.rtti).object_size() };
     }
 
     pub fn decrement(&mut self) -> bool {
@@ -98,26 +113,12 @@ impl GCObject {
         return false;
     }
 
-    pub fn set_logged(&mut self, new: bool) -> bool {
-        debug!("Set object {:p} logged={}", self, new);
-        let logged = self.header.logged;
-        self.header.logged = new;
-        return logged;
+    pub fn children(&mut self) -> Vec<GCObjectRef> {
+        let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
+        let variables = unsafe{ (*self.rtti).variables() };
+        return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
+                                      .collect();
     }
 
-    pub fn set_marked(&mut self, next: bool) -> bool {
-        debug!("Set object {:p} marked={}", self, next);
-        let marked = self.header.marked;
-        self.header.marked = next;
-        return marked == next;
-    }
-
-    pub fn is_marked(&self, next: bool) -> bool {
-        return self.header.marked == next;
-    }
-
-    pub fn spans_lines(&self) -> bool {
-        return self.header.spans_lines;
-    }
 }
 
