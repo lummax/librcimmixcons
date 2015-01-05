@@ -140,12 +140,18 @@ impl GCObject {
         return false;
     }
 
+    pub fn set_child(&mut self, num: uint, child: GCObjectRef) {
+        unsafe {
+            let base: *mut GCObjectRef = mem::transmute(&self.rtti);
+            let address = base.offset(num as int);
+            *address = child;
+        }
+    }
+
     pub fn children(&mut self) -> Vec<GCObjectRef> {
         let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
         let variables = unsafe{ (*self.rtti).variables() };
         return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
                                       .collect();
     }
-
 }
-

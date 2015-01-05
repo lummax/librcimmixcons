@@ -22,16 +22,22 @@ impl ImmixCollector {
         while let Some(object) =  object_queue.pop_front() {
             debug!("Process object {} in Immix closure", object);
             if !unsafe { (*object).set_marked(next_live_mark) } {
-                debug!("Process object {} in Immix closure", object);
-                if !unsafe { (*object).set_marked(next_live_mark) } {
-                    debug!("Object {} was unmarked: process children", object);
-                    line_allocator.set_gc_object(object);
-                    line_allocator.increment_lines(object);
-                    for child in unsafe{ (*object).children() }.into_iter() {
-                        if !unsafe{ (*child).is_marked(next_live_mark) } {
-                            debug!("Push child {} into object queue", child);
-                            object_queue.push_back(child);
+                line_allocator.set_gc_object(object);
+                line_allocator.increment_lines(object);
+                debug!("Object {} was unmarked: process children", object);
+                let children = unsafe{ (*object).children() };
+                for (num, mut child) in children.into_iter().enumerate() {
+                    if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
+                        debug!("Child {} is forwarded to {}", child, new_child);
+                        unsafe{ (*object).set_child(num, new_child); }
+                    } else if !unsafe{ (*child).is_marked(next_live_mark) } {
+                        if let Some(new_child) = line_allocator.maybe_evacuate(child) {
+                            debug!("Evacuated child {} to {}", child, new_child);
+                            unsafe{ (*object).set_child(num, new_child); }
+                            child = new_child;
                         }
+                        debug!("Push child {} into object queue", child);
+                        object_queue.push_back(child);
                     }
                 }
             }
