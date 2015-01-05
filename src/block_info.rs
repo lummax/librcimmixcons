@@ -28,6 +28,28 @@ impl BlockInfo {
         return self.mmap;
     }
 
+    pub fn increment_lines(&mut self, object: GCObjectRef) {
+        self.update_line_nums(object, true);
+    }
+
+    pub fn decrement_lines(&mut self, object: GCObjectRef) {
+        self.update_line_nums(object, false);
+    }
+
+    pub fn clear_line_counts(&mut self) {
+        for index in range(0, NUM_LINES_PER_BLOCK) {
+            self.line_counter.insert(index, 0);
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        return self.line_counter.values().all(|v| *v == 0);
+    }
+
+    pub fn offset(&self, offset: uint) -> GCObjectRef {
+        return unsafe{ self.mmap.data().offset(offset as int) } as GCObjectRef;
+    }
+
     pub fn scan_block(&self, last_high_offset: u16) -> Option<(u16, u16)> {
         debug!("Scanning block {:p} for a hole", self);
         let last_high_index = last_high_offset as uint / LINE_SIZE;
@@ -57,10 +79,20 @@ impl BlockInfo {
         };
     }
 
-    pub fn offset(&mut self, offset: uint) -> GCObjectRef {
-        return unsafe{ self.mmap.data().offset(offset as int) } as GCObjectRef;
+    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
+        let (holes, _, marked_lines) = self.line_counter.values()
+            .fold((0, false, 0), |(holes, in_hole, marked_lines), &elem|
+                  match (in_hole, elem) {
+                    (true, 0) => (holes, true, marked_lines),
+                    (true, _) => (holes, false, marked_lines + 1),
+                    (false, 0) => (holes + 1, true, marked_lines),
+                    (false, _) => (holes, false, marked_lines + 1),
+                  });
+        return (holes, marked_lines);
     }
+}
 
+impl BlockInfo {
     fn object_to_line_num(object: GCObjectRef) -> uint {
         return (object as uint % BLOCK_SIZE) / LINE_SIZE;
     }
@@ -86,36 +118,6 @@ impl BlockInfo {
                 }
             }
         }
-    }
-
-    pub fn increment_lines(&mut self, object: GCObjectRef) {
-        self.update_line_nums(object, true);
-    }
-
-    pub fn decrement_lines(&mut self, object: GCObjectRef) {
-        self.update_line_nums(object, false);
-    }
-
-    pub fn clear_line_counts(&mut self) {
-        for index in range(0, NUM_LINES_PER_BLOCK) {
-            self.line_counter.insert(index, 0);
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        return self.line_counter.values().all(|v| *v == 0);
-    }
-
-    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
-        let (holes, _, marked_lines) = self.line_counter.values()
-            .fold((0, false, 0), |(holes, in_hole, marked_lines), &elem|
-                  match (in_hole, elem) {
-                    (true, 0) => (holes, true, marked_lines),
-                    (true, _) => (holes, false, marked_lines + 1),
-                    (false, 0) => (holes + 1, true, marked_lines),
-                    (false, _) => (holes, false, marked_lines + 1),
-                  });
-        return (holes, marked_lines);
     }
 }
 
