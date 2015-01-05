@@ -6,6 +6,13 @@ authors = ["lummax <luogpg@googlemail.com>"]
 [profile.release]
 opt-level = 1
 
+[features]
+valgrind = ["vgrs"]
+
+[dependencies.vgrs]
+git = "https://github.com/lummax/vgrs"
+optional = true
+
 [dev-dependencies]
 glob = "*"
 
