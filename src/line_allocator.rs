@@ -10,6 +10,8 @@ use block_info::BlockInfo;
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 use gc_object::{GCObject, GCRTTI};
 
+type BlockTuple = (*mut BlockInfo, u16, u16);
+
 pub struct LineAllocator {
     block_allocator: BlockAllocator,
     object_map: HashSet<*mut GCObject>,
@@ -17,8 +19,8 @@ pub struct LineAllocator {
     mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
-    current_block: Option<(*mut BlockInfo, u16, u16)>,
-    overflow_block: Option<(*mut BlockInfo, u16, u16)>,
+    current_block: Option<BlockTuple>,
+    overflow_block: Option<BlockTuple>,
     current_live_mark: bool,
 }
 
@@ -59,44 +61,32 @@ impl LineAllocator {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        let block_tuple = if size < LINE_SIZE {
-            self.current_block.and_then(|tp| self.scan_for_hole(size, tp))
-                              .or_else(|| self.scan_recyclables(size))
-                              .or_else(|| self.get_new_block())
+        return if size < LINE_SIZE {
+            self.current_block.take()
+                              .and_then(|tp| self.scan_for_hole(size, tp))
         } else {
-            self.overflow_block.and_then(|tp| self.scan_for_hole(size, tp))
+            self.overflow_block.take()
+                               .and_then(|tp| self.scan_for_hole(size, tp))
                                .or_else(|| self.get_new_block())
-        };
-        return match block_tuple {
-            None => None,
-            Some((block, low, high)) => {
-                let object = unsafe { (*block).offset(low as uint) };
-                self.set_gc_object(object);
-                unsafe {
-                    ptr::write(object, GCObject::new(rtti, self.current_live_mark));
-                }
-                if size < LINE_SIZE {
-                    self.current_block = Some((block, low + size as u16, high));
-                    debug!("Allocated object {} of size {} in {}",
-                           object, size, block);
-                } else {
-                    self.overflow_block = Some((block, low + size as u16, high));
-                    debug!("Allocated object {} of size {} in {} (overflow)",
-                           object, size, block);
-                }
-                valgrind_malloclike!(object, size);
-                Some(object)
-            }
-        };
+        }.or_else(|| self.scan_recyclables(size))
+         .or_else(|| self.get_new_block())
+         .map(|tp| self.allocate_from_block(rtti, size, tp))
+         .map(|(tp, object)| {
+             if size < LINE_SIZE { self.current_block = Some(tp);
+             } else { self.overflow_block = Some(tp); }
+
+             valgrind_malloclike!(object, size);
+             object
+         });
     }
 
-    fn scan_for_hole(&mut self, size: uint, tuple: (*mut BlockInfo, u16, u16))
-        -> Option<(*mut BlockInfo, u16, u16)> {
-            let (block, low, high) = tuple;
+    fn scan_for_hole(&mut self, size: uint, block_tuple: BlockTuple)
+        -> Option<BlockTuple> {
+            let (block, low, high) = block_tuple;
             return match (high - low) as uint >= size {
                 true => {
                     debug!("Found hole in block {:p}", block);
-                    Some(tuple)
+                    Some(block_tuple)
                 },
                 false => match unsafe{ (*block).scan_block(high) } {
                     None => {
@@ -110,7 +100,7 @@ impl LineAllocator {
             };
         }
 
-    fn scan_recyclables(&mut self, size: uint) -> Option<(*mut BlockInfo, u16, u16)> {
+    fn scan_recyclables(&mut self, size: uint) -> Option<BlockTuple> {
         return match self.recyclable_blocks.pop_front() {
             None => None,
             Some(block) => match unsafe{ (*block).scan_block((LINE_SIZE - 1) as u16) } {
@@ -125,10 +115,21 @@ impl LineAllocator {
         };
     }
 
-    fn get_new_block(&mut self) -> Option<(*mut BlockInfo, u16, u16)> {
+    fn get_new_block(&mut self) -> Option<BlockTuple> {
         debug!("Request new block from block_allocator");
         return self.block_allocator.get_block()
                    .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+    }
+
+    fn allocate_from_block(&mut self, rtti: *const GCRTTI, size: uint,
+                           block_tuple: BlockTuple) -> (BlockTuple, *mut GCObject) {
+        let (block, low, high) = block_tuple;
+        let object = unsafe { (*block).offset(low as uint) };
+        self.set_gc_object(object);
+        unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
+        debug!("Allocated object {} of size {} in {} (object={})",
+               object, size, block, size >= LINE_SIZE);
+        return ((block, low + size as u16, high), object);
     }
 
     pub fn complete_collection(&mut self) {
