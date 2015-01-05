@@ -8,6 +8,7 @@ extern crate libc;
 use std::{mem, ptr};
 
 pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
+use immix_collector::ImmixCollector;
 
 mod macros;
 mod constants;
@@ -42,10 +43,13 @@ impl RCImmixCons {
     }
 
     pub fn collect(&mut self) {
+        let perform_cc = self.line_allocator.prepare_collection();
         let roots = stack::enumerate_roots(&self.line_allocator);
         self.rc_collector.collect(&mut self.line_allocator, roots.as_slice());
-        immix_collector::ImmixCollector::collect(&mut self.line_allocator,
-                                                 roots.as_slice());
+        if perform_cc {
+            ImmixCollector::collect(&mut self.line_allocator, roots.as_slice());
+        }
+        self.line_allocator.complete_collection();
         valgrind_assert_no_leaks!();
     }
 

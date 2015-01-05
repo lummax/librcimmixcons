@@ -47,13 +47,6 @@ impl LineAllocator {
         self.object_map.remove(&object);
     }
 
-    pub fn clear_object_map(&mut self) {
-        if cfg!(feature = "valgrind") {
-            self.object_map_backup = self.object_map.clone();
-        }
-        self.object_map.clear();
-    }
-
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         return self.object_map.contains(&object);
     }
@@ -61,6 +54,14 @@ impl LineAllocator {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
+        if let Some(object) = self.raw_allocate(size) {
+            unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
+            return Some(object);
+        }
+        return None;
+    }
+
+    fn raw_allocate(&mut self, size: uint) -> Option<GCObjectRef> {
         return if size < LINE_SIZE {
             self.current_block.take()
                               .and_then(|tp| self.scan_for_hole(size, tp))
@@ -70,7 +71,7 @@ impl LineAllocator {
                                .or_else(|| self.get_new_block())
         }.or_else(|| self.scan_recyclables(size))
          .or_else(|| self.get_new_block())
-         .map(|tp| self.allocate_from_block(rtti, size, tp))
+         .map(|tp| self.allocate_from_block(size, tp))
          .map(|(tp, object)| {
              if size < LINE_SIZE { self.current_block = Some(tp);
              } else { self.overflow_block = Some(tp); }
@@ -121,24 +122,29 @@ impl LineAllocator {
                    .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }
 
-    fn allocate_from_block(&mut self, rtti: *const GCRTTI, size: uint,
-                           block_tuple: BlockTuple) -> (BlockTuple, GCObjectRef) {
-        let (block, low, high) = block_tuple;
-        let object = unsafe { (*block).offset(low as uint) };
-        self.set_gc_object(object);
-        unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
-        debug!("Allocated object {} of size {} in {} (object={})",
-               object, size, block, size >= LINE_SIZE);
-        return ((block, low + size as u16, high), object);
+    fn allocate_from_block(&mut self, size: uint, block_tuple: BlockTuple)
+        -> (BlockTuple, GCObjectRef) {
+            let (block, low, high) = block_tuple;
+            let object = unsafe { (*block).offset(low as uint) };
+            self.set_gc_object(object);
+            debug!("Allocated object {} of size {} in {} (object={})",
+            object, size, block, size >= LINE_SIZE);
+            return ((block, low + size as u16, high), object);
+        }
+
+    pub fn prepare_collection(&mut self) -> bool {
+        self.unavailable_blocks.extend(self.recyclable_blocks.drain());
+        self.unavailable_blocks.extend(self.current_block.take()
+                                           .map(|b| b.0).into_iter());
+
+        let perform_cycle_collection = true;
+        return perform_cycle_collection;
     }
 
     pub fn complete_collection(&mut self) {
         self.mark_histogram.clear();
-        let mut recyclable_blocks = RingBuf::new();
         let mut unavailable_blocks = RingBuf::new();
-        for block in self.current_block.take().map(|(b, _, _)| b).into_iter()
-                         .chain(self.recyclable_blocks.drain())
-                         .chain(self.unavailable_blocks.drain()) {
+        for block in self.unavailable_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
                 debug!("Return block {:p} to global block allocator", block);
                 self.block_allocator.return_block(block);
@@ -154,12 +160,11 @@ impl LineAllocator {
                     },
                     _ => {
                         debug!("Push block {:p} into recyclable_blocks", block);
-                        recyclable_blocks.push_back(block);
+                        self.recyclable_blocks.push_back(block);
                     }
                 }
             }
         }
-        self.recyclable_blocks.extend(recyclable_blocks.into_iter());
         self.unavailable_blocks.extend(unavailable_blocks.into_iter());
 
         if cfg!(feature = "valgrind") {
@@ -167,6 +172,21 @@ impl LineAllocator {
                 valgrind_freelike!(object);
             }
         }
+    }
+
+    pub fn prepare_immix_collection(&mut self) {
+        for block in self.unavailable_blocks.iter_mut() {
+            unsafe{ (**block).clear_line_counts(); }
+        }
+
+        if cfg!(feature = "valgrind") {
+            self.object_map_backup = self.object_map.clone();
+        }
+        self.object_map.clear();
+    }
+
+    pub fn complete_immix_collection(&mut self) {
+        self.current_live_mark = !self.current_live_mark;
     }
 
     unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
@@ -184,18 +204,5 @@ impl LineAllocator {
 
     pub fn current_live_mark(&self) -> bool {
         return self.current_live_mark;
-    }
-
-    pub fn invert_live_mark(&mut self) {
-        self.current_live_mark = !self.current_live_mark;
-    }
-
-    pub fn clear_line_counts(&mut self) {
-        // This will only be called after the RCCollector did his work and
-        // self.return_empty_blocks() was invoked. So every managed block is
-        // in self.recyclable_blocks.
-        for block in self.recyclable_blocks.iter_mut() {
-            unsafe{ (**block).clear_line_counts(); }
-        }
     }
 }

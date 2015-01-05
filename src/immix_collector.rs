@@ -13,10 +13,9 @@ impl ImmixCollector {
         let next_live_mark = !line_allocator.current_live_mark();
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
-        line_allocator.clear_line_counts();
-        line_allocator.clear_object_map();
         let mut object_queue = roots.iter().map(|o| *o)
                                     .collect::<RingBuf<GCObjectRef>>();
+        line_allocator.prepare_immix_collection();
         loop {
             match object_queue.pop_front() {
                 None => break,
@@ -36,8 +35,7 @@ impl ImmixCollector {
                 }
             }
         }
+        line_allocator.complete_immix_collection();
         debug!("Complete collection");
-        line_allocator.invert_live_mark();
-        line_allocator.complete_collection();
     }
 }

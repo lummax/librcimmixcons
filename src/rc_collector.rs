@@ -29,7 +29,6 @@ impl RCCollector {
         self.process_mod_buffer(line_allocator);
         self.process_decrement_buffer(line_allocator);
         debug!("Complete collection");
-        line_allocator.complete_collection();
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
