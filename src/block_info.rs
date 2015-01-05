@@ -12,6 +12,7 @@ pub struct BlockInfo {
     mmap: os::MemoryMap,
     line_counter: VecMap<u8>,
     hole_count: u8,
+    evacuation_candidate: bool,
 }
 
 impl BlockInfo {
@@ -21,9 +22,20 @@ impl BlockInfo {
             mmap: mmap,
             line_counter: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
             hole_count: 0,
+            evacuation_candidate: false,
         };
         block.clear_line_counts();
         return block;
+    }
+
+    pub fn set_evacuation_candidate(&mut self, hole_count: u8) {
+        debug!("Set block {:p} to evacuation_candidate={} ({} holes)",
+               &self, self.hole_count >= hole_count, self.hole_count);
+        self.evacuation_candidate = self.hole_count >= hole_count;
+    }
+
+    pub fn is_evacuation_candidate(&self) -> bool{
+        return self.evacuation_candidate;
     }
 
     pub fn increment_lines(&mut self, object: GCObjectRef) {
