@@ -13,6 +13,7 @@ use gc_object::{GCObject, GCRTTI};
 pub struct LineAllocator {
     block_allocator: BlockAllocator,
     object_map: HashSet<*mut GCObject>,
+    object_map_backup: HashSet<*mut GCObject>,
     mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
@@ -26,6 +27,7 @@ impl LineAllocator {
         return LineAllocator {
             block_allocator: block_allocator,
             object_map: HashSet::new(),
+            object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
@@ -44,6 +46,9 @@ impl LineAllocator {
     }
 
     pub fn clear_object_map(&mut self) {
+        if cfg!(feature = "valgrind") {
+            self.object_map_backup = self.object_map.clone();
+        }
         self.object_map.clear();
     }
 
@@ -155,6 +160,12 @@ impl LineAllocator {
         }
         self.recyclable_blocks.extend(recyclable_blocks.into_iter());
         self.unavailable_blocks.extend(unavailable_blocks.into_iter());
+
+        if cfg!(feature = "valgrind") {
+            for object in self.object_map_backup.drain() {
+                valgrind_freelike!(object);
+            }
+        }
     }
 
     unsafe fn get_block_ptr(&mut self, object: *mut GCObject) -> *mut BlockInfo {
