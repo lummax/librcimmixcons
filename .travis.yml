@@ -1,1 +1,10 @@
 language: rust
+
+install:
+    - sudo apt-get -qq install valgrind
+
+script:
+    - cargo build --verbose
+    - cargo test --verbose
+    - cargo build --verbose --features "valgrind"
+    - valgrind cargo test --verbose --features "valgrind"
