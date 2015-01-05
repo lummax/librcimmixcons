@@ -79,6 +79,7 @@ impl LineAllocator {
                     debug!("Allocated object {} of size {} in {} (overflow)",
                            object, size, block);
                 }
+                valgrind_malloclike!(object, size);
                 Some(object)
             }
         };

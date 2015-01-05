@@ -12,3 +12,26 @@ macro_rules! debug(
         }
     )
 );
+
+#[cfg(feature = "valgrind")]
+pub mod valgrind {
+    extern crate vgrs;
+    pub use self::vgrs::memcheck::malloclike_block;
+}
+
+#[cfg(not(feature = "valgrind"))]
+#[allow(unused_variables)]
+pub mod valgrind {
+    pub unsafe fn malloclike_block(addr: *const (), size: uint, redzone: uint, is_zeroed: bool) { }
+}
+
+#[macro_export]
+macro_rules! valgrind_malloclike(
+    ($addr:expr, $size:expr) => (
+        if cfg!(feature = "valgrind") {
+            unsafe{
+                ::macros::valgrind::malloclike_block($addr as *const (), $size, 0, true);
+            }
+        }
+    )
+);
