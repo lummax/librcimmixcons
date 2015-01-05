@@ -3,13 +3,13 @@
 
 use std::collections::RingBuf;
 
-use gc_object::GCObject;
+use gc_object::GCObjectRef;
 use line_allocator::LineAllocator;
 
 pub struct RCCollector {
-    old_root_buffer: RingBuf<*mut GCObject>,
-    decrement_buffer: RingBuf<*mut GCObject>,
-    modified_buffer: RingBuf<*mut GCObject>,
+    old_root_buffer: RingBuf<GCObjectRef>,
+    decrement_buffer: RingBuf<GCObjectRef>,
+    modified_buffer: RingBuf<GCObjectRef>,
 }
 
 impl RCCollector {
@@ -22,7 +22,7 @@ impl RCCollector {
     }
 
     pub fn collect(&mut self, line_allocator: &mut LineAllocator,
-                   roots: &[*mut GCObject]) {
+                   roots: &[GCObjectRef]) {
         debug!("Start RC collection");
         self.process_old_roots();
         self.process_current_roots(line_allocator, roots);
@@ -32,7 +32,7 @@ impl RCCollector {
         line_allocator.complete_collection();
     }
 
-    pub fn write_barrier(&mut self, object: *mut GCObject) {
+    pub fn write_barrier(&mut self, object: GCObjectRef) {
         debug!("Write barrier on object {}", object);
         self.modified(object);
         for child in unsafe{ (*object).children() }.into_iter() {
@@ -41,17 +41,17 @@ impl RCCollector {
         unsafe{ (*object).set_logged(true); }
     }
 
-    fn modified(&mut self, object: *mut GCObject) {
+    fn modified(&mut self, object: GCObjectRef) {
         debug!("Push object {} into mod buffer", object);
         self.modified_buffer.push_back(object);
     }
 
-    fn decrement(&mut self, object: *mut GCObject) {
+    fn decrement(&mut self, object: GCObjectRef) {
         debug!("Push object {} into dec buffer", object);
         self.decrement_buffer.push_back(object);
     }
 
-    fn increment(&mut self, line_allocator: &mut LineAllocator, object: *mut GCObject) {
+    fn increment(&mut self, line_allocator: &mut LineAllocator, object: GCObjectRef) {
         debug!("Increment object {}", object);
         if unsafe{ (*object).increment() } {
             line_allocator.increment_lines(object);
@@ -65,7 +65,7 @@ impl RCCollector {
     }
 
     fn process_current_roots(&mut self, line_allocator: &mut LineAllocator,
-                             roots: &[*mut GCObject]) {
+                             roots: &[GCObjectRef]) {
         debug!("Process current roots (size {})", roots.len());
         for root in roots.iter().map(|o| *o) {
             debug!("Process root object: {}", root);

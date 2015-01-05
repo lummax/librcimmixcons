@@ -3,20 +3,20 @@
 
 use std::collections::RingBuf;
 
-use gc_object::GCObject;
+use gc_object::GCObjectRef;
 use line_allocator::LineAllocator;
 
 pub struct ImmixCollector;
 
 impl ImmixCollector {
-    pub fn collect(line_allocator: &mut LineAllocator, roots: &[*mut GCObject]) {
+    pub fn collect(line_allocator: &mut LineAllocator, roots: &[GCObjectRef]) {
         let next_live_mark = !line_allocator.current_live_mark();
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
         line_allocator.clear_line_counts();
         line_allocator.clear_object_map();
         let mut object_queue = roots.iter().map(|o| *o)
-                                    .collect::<RingBuf<*mut GCObject>>();
+                                    .collect::<RingBuf<GCObjectRef>>();
         loop {
             match object_queue.pop_front() {
                 None => break,

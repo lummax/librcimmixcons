@@ -9,7 +9,7 @@ use posix::setjmp;
 use std::collections::HashSet;
 use std::{ptr, mem};
 
-use gc_object::GCObject;
+use gc_object::GCObjectRef;
 use line_allocator::LineAllocator;
 
 #[inline(always)]
@@ -64,13 +64,13 @@ fn save_registers() -> setjmp::jmp_buf {
 }
 
 #[allow(unused_variables)]
-pub fn enumerate_roots(line_allocator: &LineAllocator) -> Vec<*mut GCObject> {
+pub fn enumerate_roots(line_allocator: &LineAllocator) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
     if let Some((top, bottom)) = get_stack() {
         return range(top as uint, unsafe{ bottom.offset(-7) } as uint )
-            .map(|e| unsafe{ *(e as *const *mut GCObject) })
+            .map(|e| unsafe{ *(e as *const GCObjectRef) })
             .filter(|e| line_allocator.is_gc_object(*e))
-            .collect::<HashSet<*mut GCObject>>()
+            .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();
     }
     return Vec::new();

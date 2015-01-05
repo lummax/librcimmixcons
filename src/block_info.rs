@@ -5,7 +5,7 @@ use std::collections::VecMap;
 use std::num::Int;
 use std::{os, mem};
 
-use gc_object::GCObject;
+use gc_object::GCObjectRef;
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 
 pub struct BlockInfo {
@@ -57,15 +57,15 @@ impl BlockInfo {
         };
     }
 
-    pub fn offset(&mut self, offset: uint) -> *mut GCObject {
-        return unsafe{ self.mmap.data().offset(offset as int) } as *mut GCObject;
+    pub fn offset(&mut self, offset: uint) -> GCObjectRef {
+        return unsafe{ self.mmap.data().offset(offset as int) } as GCObjectRef;
     }
 
-    fn object_to_line_num(object: *const GCObject) -> uint {
+    fn object_to_line_num(object: GCObjectRef) -> uint {
         return (object as uint % BLOCK_SIZE) / LINE_SIZE;
     }
 
-    fn update_line_nums(&mut self, object: *const GCObject, increment: bool) {
+    fn update_line_nums(&mut self, object: GCObjectRef, increment: bool) {
         // This calculates how many lines are affected starting from a
         // LINE_SIZE aligned address. So it might not mark enough lines. But
         // that does not matter as we always skip a line in scan_block()
@@ -88,11 +88,11 @@ impl BlockInfo {
         }
     }
 
-    pub fn increment_lines(&mut self, object: *const GCObject) {
+    pub fn increment_lines(&mut self, object: GCObjectRef) {
         self.update_line_nums(object, true);
     }
 
-    pub fn decrement_lines(&mut self, object: *const GCObject) {
+    pub fn decrement_lines(&mut self, object: GCObjectRef) {
         self.update_line_nums(object, false);
     }
 

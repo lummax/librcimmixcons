@@ -31,6 +31,8 @@ pub struct GCObject {
     rtti: *const GCRTTI
 }
 
+pub type GCObjectRef = *mut GCObject;
+
 impl GCRTTI {
     pub fn new(object_size: uint, variables: uint) -> GCRTTI {
         return GCRTTI {
@@ -69,8 +71,8 @@ impl GCObject {
         return unsafe{ (*self.rtti).object_size() };
     }
 
-    pub fn children(&mut self) -> Vec<*mut GCObject> {
-        let base: *const *mut GCObject = unsafe{ mem::transmute(&self.rtti) };
+    pub fn children(&mut self) -> Vec<GCObjectRef> {
+        let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
         let variables = unsafe{ (*self.rtti).variables() };
         return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
                                       .collect();

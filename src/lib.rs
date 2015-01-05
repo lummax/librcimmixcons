@@ -7,7 +7,7 @@
 extern crate libc;
 use std::{mem, ptr};
 
-pub use self::gc_object::{GCHeader, GCObject, GCRTTI};
+pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
 
 mod macros;
 mod constants;
@@ -34,7 +34,7 @@ impl RCImmixCons {
         };
     }
 
-    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject>{
+    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef>{
         // XXX use LOS if size > BLOCK_SIZE - LINE_SIZE
         assert!(unsafe{ (*rtti).object_size() }
                 <= constants::BLOCK_SIZE - constants::LINE_SIZE);
@@ -49,7 +49,7 @@ impl RCImmixCons {
         valgrind_assert_no_leaks!();
     }
 
-    pub fn write_barrier(&mut self, object: *mut GCObject) {
+    pub fn write_barrier(&mut self, object: GCObjectRef) {
         if self.line_allocator.is_gc_object(object) {
             self.rc_collector.write_barrier(object);
         }
@@ -63,7 +63,7 @@ pub extern fn rcx_create() -> *mut RCImmixCons {
 
 #[no_mangle]
 pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
-    -> *mut GCObject {
+    -> GCObjectRef {
     unsafe { return (*this).allocate(rtti).unwrap_or(ptr::null_mut()); }
 }
 
@@ -73,7 +73,7 @@ pub extern fn rcx_collect(this: *mut RCImmixCons) {
 }
 
 #[no_mangle]
-pub extern fn rcx_write_barrier(this: *mut RCImmixCons, object: *mut GCObject) {
+pub extern fn rcx_write_barrier(this: *mut RCImmixCons, object: GCObjectRef) {
     unsafe { (*this).write_barrier(object) };
 }
 

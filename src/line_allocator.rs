@@ -8,14 +8,14 @@ use std::ptr;
 use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
-use gc_object::{GCObject, GCRTTI};
+use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 type BlockTuple = (*mut BlockInfo, u16, u16);
 
 pub struct LineAllocator {
     block_allocator: BlockAllocator,
-    object_map: HashSet<*mut GCObject>,
-    object_map_backup: HashSet<*mut GCObject>,
+    object_map: HashSet<GCObjectRef>,
+    object_map_backup: HashSet<GCObjectRef>,
     mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
@@ -39,11 +39,11 @@ impl LineAllocator {
         };
     }
 
-    pub fn set_gc_object(&mut self, object: *mut GCObject) {
+    pub fn set_gc_object(&mut self, object: GCObjectRef) {
         self.object_map.insert(object);
     }
 
-    pub fn unset_gc_object(&mut self, object: *mut GCObject) {
+    pub fn unset_gc_object(&mut self, object: GCObjectRef) {
         self.object_map.remove(&object);
     }
 
@@ -54,11 +54,11 @@ impl LineAllocator {
         self.object_map.clear();
     }
 
-    pub fn is_gc_object(&self, object: *mut GCObject) -> bool {
+    pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         return self.object_map.contains(&object);
     }
 
-    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<*mut GCObject> {
+    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
         return if size < LINE_SIZE {
@@ -122,7 +122,7 @@ impl LineAllocator {
     }
 
     fn allocate_from_block(&mut self, rtti: *const GCRTTI, size: uint,
-                           block_tuple: BlockTuple) -> (BlockTuple, *mut GCObject) {
+                           block_tuple: BlockTuple) -> (BlockTuple, GCObjectRef) {
         let (block, low, high) = block_tuple;
         let object = unsafe { (*block).offset(low as uint) };
         self.set_gc_object(object);
@@ -169,16 +169,16 @@ impl LineAllocator {
         }
     }
 
-    unsafe fn get_block_ptr(&mut self, object: *mut GCObject) -> *mut BlockInfo {
+    unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
         let block_offset = object as uint % BLOCK_SIZE;
         return mem::transmute((object as *mut u8).offset(-(block_offset as int)));
     }
 
-    pub fn decrement_lines(&mut self, object: *mut GCObject) {
+    pub fn decrement_lines(&mut self, object: GCObjectRef) {
         unsafe{ (*self.get_block_ptr(object)).decrement_lines(object); }
     }
 
-    pub fn increment_lines(&mut self, object: *mut GCObject) {
+    pub fn increment_lines(&mut self, object: GCObjectRef) {
         unsafe{ (*self.get_block_ptr(object)).increment_lines(object); }
     }
 
