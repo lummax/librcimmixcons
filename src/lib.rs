@@ -46,6 +46,7 @@ impl RCImmixCons {
         self.rc_collector.collect(&mut self.line_allocator, roots.as_slice());
         immix_collector::ImmixCollector::collect(&mut self.line_allocator,
                                                  roots.as_slice());
+        valgrind_assert_no_leaks!();
     }
 
     pub fn write_barrier(&mut self, object: *mut GCObject) {
