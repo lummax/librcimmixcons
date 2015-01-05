@@ -4,10 +4,10 @@
 use std::{os, ptr};
 
 use block_info::BlockInfo;
-use constants::BLOCK_SIZE;
+use constants::{BLOCK_SIZE, BUFFER_BLOCK_COUNT};
 
 pub struct BlockAllocator {
-    free_blocks: Vec<os::MemoryMap>,
+    free_blocks: Vec<*mut BlockInfo>,
 }
 
 impl BlockAllocator {
@@ -19,20 +19,23 @@ impl BlockAllocator {
 
     pub fn get_block(&mut self) -> Option<*mut BlockInfo> {
         let call_mmap = |:| os::MemoryMap::new(BLOCK_SIZE,
-            &[os::MapOption::MapReadable, os::MapOption::MapWritable]).ok();
-        let wrap_mmap = |:mmap: os::MemoryMap| unsafe {
-            let object = mmap.data() as *mut BlockInfo;
-            ptr::write(object, BlockInfo::new(mmap));
-            object
-        };
-        return self.free_blocks.pop().or_else(call_mmap).map(wrap_mmap);
+                                               &[os::MapOption::MapReadable,
+                                                 os::MapOption::MapWritable])
+                                          .ok()
+                                          .map(|mmap| unsafe {
+                                              let object = mmap.data() as *mut BlockInfo;
+                                              ptr::write(object, BlockInfo::new(mmap));
+                                              object});
+        return self.free_blocks.pop().or_else(call_mmap);
     }
 
     pub fn return_block(&mut self, block: *mut BlockInfo) {
         debug!("Returned block {:p}", block);
-        let block_info = unsafe { ptr::read(block) };
-        if self.free_blocks.len() < 10 {
-            self.free_blocks.push(block_info.into_memory_map());
+        if self.free_blocks.len() < BUFFER_BLOCK_COUNT {
+            unsafe{ (*block).reset() ;}
+            self.free_blocks.push(block);
+        } else {
+            unsafe { ptr::read(block) };
         }
     }
 

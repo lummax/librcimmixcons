@@ -24,10 +24,6 @@ impl BlockInfo {
         return block;
     }
 
-    pub fn into_memory_map(self) -> os::MemoryMap {
-        return self.mmap;
-    }
-
     pub fn increment_lines(&mut self, object: GCObjectRef) {
         self.update_line_nums(object, true);
     }
@@ -40,6 +36,11 @@ impl BlockInfo {
         for index in range(0, NUM_LINES_PER_BLOCK) {
             self.line_counter.insert(index, 0);
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.clear_line_counts();
+        self.evacuation_candidate = false;
     }
 
     pub fn is_empty(&self) -> bool {
