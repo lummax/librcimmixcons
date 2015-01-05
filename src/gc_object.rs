@@ -15,6 +15,7 @@ pub struct GCHeader {
     forwarded: bool,
     logged: bool,
     marked: bool,
+    pinned: bool,
     new: bool,
 }
 
@@ -61,6 +62,7 @@ impl GCObject {
                 forwarded: false,
                 logged: false,
                 marked: mark,
+                pinned: false,
                 new: true,
             },
             rtti: rtti,
@@ -83,6 +85,28 @@ impl GCObject {
 
     pub fn is_marked(&self, next: bool) -> bool {
         return self.header.marked == next;
+    }
+
+    pub fn set_pinned(&mut self, pinned: bool) {
+        debug!("Set object {:p} pinned={}", self, pinned);
+        self.header.pinned = pinned;
+    }
+
+    pub fn is_pinned(&self) -> bool {
+        return self.header.pinned;
+    }
+
+    pub fn set_forwarded(&mut self, new: GCObjectRef) {
+        debug!("Set object {:p} forwarded to {}", self, new);
+        self.header.forwarded = true;
+        self.rtti = new as *const GCRTTI;
+    }
+
+    pub fn is_forwarded(&self) -> Option<GCObjectRef> {
+        if self.header.forwarded {
+            return Some(self.rtti as GCObjectRef);
+        }
+        return None;
     }
 
     pub fn spans_lines(&self) -> bool {
