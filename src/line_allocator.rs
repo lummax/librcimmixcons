@@ -104,6 +104,10 @@ impl LineAllocator {
     }
 
     pub fn prepare_collection(&mut self) -> bool {
+        // XXX The important question is: When to run the defragmentation and
+        // XXX the cycle-collection. The papers describe a minimum-free
+        // XXX threshhold of 1% of free memory. This needs a runtime with
+        // XXX bounded configurable heap-size.
         self.unavailable_blocks.extend(self.recyclable_blocks.drain());
         self.unavailable_blocks.extend(self.current_block.take()
                                            .map(|b| b.0).into_iter());
