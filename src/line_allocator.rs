@@ -85,33 +85,8 @@ impl LineAllocator {
 
     pub fn complete_collection(&mut self) {
         self.mark_histogram.clear();
-        let mut unavailable_blocks = RingBuf::new();
-        for block in self.unavailable_blocks.drain() {
-            if unsafe{ (*block).is_empty() } {
-                debug!("Return block {:p} to global block allocator", block);
-                self.block_allocator.return_block(block);
-            } else {
-                let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
-                if self.mark_histogram.contains_key(&(holes as uint)) {
-                    if let Some(val) = self.mark_histogram.get_mut(&(holes as uint)) {
-                        *val += marked_lines;
-                    }
-                } else { self.mark_histogram.insert(holes as uint, marked_lines); }
-                debug!("Found {} holes and {} marked lines in block {}",
-                       holes, marked_lines, block);
-                match holes {
-                    0 => {
-                        debug!("Push block {:p} into unavailable_blocks", block);
-                        unavailable_blocks.push_back(block);
-                    },
-                    _ => {
-                        debug!("Push block {:p} into recyclable_blocks", block);
-                        self.recyclable_blocks.push_back(block);
-                    }
-                }
-            }
-        }
-        self.unavailable_blocks.extend(unavailable_blocks.into_iter());
+        self.perform_defrag = false;
+        self.sweep_unavailable_blocks();
     }
 
     pub fn prepare_immix_collection(&mut self) {
@@ -210,4 +185,35 @@ impl LineAllocator {
             object, size, block, size >= LINE_SIZE);
             return ((block, low + size as u16, high), object);
         }
+
+    fn sweep_unavailable_blocks(&mut self) {
+        let mut unavailable_blocks = RingBuf::new();
+        for block in self.unavailable_blocks.drain() {
+            if unsafe{ (*block).is_empty() } {
+                debug!("Return block {:p} to global block allocator", block);
+                self.block_allocator.return_block(block);
+            } else {
+                unsafe{ (*block).count_holes(); }
+                let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
+                if self.mark_histogram.contains_key(&(holes as uint)) {
+                    if let Some(val) = self.mark_histogram.get_mut(&(holes as uint)) {
+                        *val += marked_lines;
+                    }
+                } else { self.mark_histogram.insert(holes as uint, marked_lines); }
+                debug!("Found {} holes and {} marked lines in block {}",
+                       holes, marked_lines, block);
+                match holes {
+                    0 => {
+                        debug!("Push block {:p} into unavailable_blocks", block);
+                        unavailable_blocks.push_back(block);
+                    },
+                    _ => {
+                        debug!("Push block {:p} into recyclable_blocks", block);
+                        self.recyclable_blocks.push_back(block);
+                    }
+                }
+            }
+        }
+        self.unavailable_blocks.extend(unavailable_blocks.into_iter());
+    }
 }
