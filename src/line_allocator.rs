@@ -7,7 +7,7 @@ use std::ptr;
 
 use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
-use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
+use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK, EVAC_HEADROOM};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 type BlockTuple = (*mut BlockInfo, u16, u16);
@@ -19,6 +19,7 @@ pub struct LineAllocator {
     mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
+    evac_headroom: RingBuf<*mut BlockInfo>,
     current_block: Option<BlockTuple>,
     overflow_block: Option<BlockTuple>,
     current_live_mark: bool,
@@ -33,6 +34,7 @@ impl LineAllocator {
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
+            evac_headroom: RingBuf::new(),
             current_block: None,
             overflow_block: None,
             current_live_mark: false,
@@ -170,12 +172,6 @@ impl LineAllocator {
         };
     }
 
-    fn get_new_block(&mut self) -> Option<BlockTuple> {
-        debug!("Request new block from block_allocator");
-        return self.block_allocator.get_block()
-                   .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
-    }
-
     fn allocate_from_block(&mut self, size: uint, block_tuple: BlockTuple)
         -> (BlockTuple, GCObjectRef) {
             let (block, low, high) = block_tuple;
@@ -186,12 +182,30 @@ impl LineAllocator {
             return ((block, low + size as u16, high), object);
         }
 
+    fn get_new_block(&mut self) -> Option<BlockTuple> {
+        return if self.perform_evac {
+            debug!("Request new block in evacuation");
+            self.evac_headroom.pop_front()
+        } else {
+            debug!("Request new block");
+            self.block_allocator.get_block()
+        }.map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+    }
+
     fn sweep_unavailable_blocks(&mut self) {
         let mut unavailable_blocks = RingBuf::new();
         for block in self.unavailable_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
-                debug!("Return block {:p} to global block allocator", block);
-                self.block_allocator.return_block(block);
+                // XXX We should not use a constant here, but something that
+                // XXX changes dynamically (see rcimmix: MAX heuristic).
+                if self.evac_headroom.len() < EVAC_HEADROOM {
+                    debug!("Buffer free block {:p} for evacuation", block);
+                    unsafe{ (*block).reset() ;}
+                    self.evac_headroom.push_back(block);
+                } else {
+                    debug!("Return block {:p} to global block allocator", block);
+                    self.block_allocator.return_block(block);
+                }
             } else {
                 unsafe{ (*block).count_holes(); }
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };

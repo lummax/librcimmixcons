@@ -9,4 +9,5 @@ pub const BLOCK_SIZE : uint = 4 * 1024;
 pub const LINE_SIZE: uint = 256;
 pub const NUM_LINES_PER_BLOCK: uint = BLOCK_SIZE / LINE_SIZE;
 
+pub const EVAC_HEADROOM: uint = 5;
 pub const BUFFER_BLOCK_COUNT: uint = 10;
