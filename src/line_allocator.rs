@@ -91,7 +91,11 @@ impl LineAllocator {
                 self.block_allocator.return_block(block);
             } else {
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
-                self.mark_histogram.update(holes as uint, marked_lines, |o, n| o + n);
+                if self.mark_histogram.contains_key(&(holes as uint)) {
+                    if let Some(val) = self.mark_histogram.get_mut(&(holes as uint)) {
+                        *val += marked_lines;
+                    }
+                } else { self.mark_histogram.insert(holes as uint, marked_lines); }
                 debug!("Found {} holes and {} marked lines in block {}",
                        holes, marked_lines, block);
                 match holes {

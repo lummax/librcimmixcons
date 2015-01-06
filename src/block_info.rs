@@ -106,13 +106,20 @@ impl BlockInfo {
         for line in range(line_num, line_num + (object_size / LINE_SIZE) + 1) {
             match increment {
                 true => {
-                    self.line_counter.update(line, 1, |o, n| o + n);
+                    if self.line_counter.contains_key(&line) {
+                        if let Some(val) = self.line_counter.get_mut(&line) {
+                            *val += 1;
+                        }
+                    } else { self.line_counter.insert(line, 1); }
                     debug!("Incremented line count for line {} to {}", line,
                            self.line_counter.get(&line).unwrap());
                 },
                 false => {
-                    self.line_counter.update(line, 0,
-                                             |o, _| Int::saturating_sub(o, 1));
+                    if self.line_counter.contains_key(&line) {
+                        if let Some(val) = self.line_counter.get_mut(&line) {
+                            *val = Int::saturating_sub(*val, 1);
+                        }
+                    } else { self.line_counter.insert(line, 0); }
                     debug!("Decremented line count for line {} to {}", line,
                            self.line_counter.get(&line).unwrap());
                 }
