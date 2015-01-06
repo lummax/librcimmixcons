@@ -27,6 +27,7 @@ macro_rules! run_c_file (
 
 run_c_file!(simple_ffi_test);
 run_c_file!(simple_closure_test);
+run_c_file!(simple_overflow_test);
 run_c_file!(simple_rc_collection_test);
 run_c_file!(simple_rc_collection_and_recycle_test);
 run_c_file!(simple_immix_collection_and_recycle_test);
