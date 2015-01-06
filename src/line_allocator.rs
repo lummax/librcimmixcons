@@ -109,6 +109,18 @@ impl LineAllocator {
                                            .map(|b| b.0).into_iter());
         self.perform_evac = true;
 
+        if self.perform_evac {
+            let hole_threshhold = self.establish_hole_threshhold();
+            self.perform_evac = hole_threshhold > 0
+                                && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
+            if self.perform_evac {
+                debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
+                       hole_threshhold, self.evac_headroom.len());
+                for block in self.unavailable_blocks.iter_mut() {
+                    unsafe{ (**block).set_evacuation_candidate(hole_threshhold); }
+                }
+            }
+        }
         let perform_cycle_collection = true;
         return perform_cycle_collection;
     }
