@@ -23,6 +23,7 @@ pub struct LineAllocator {
     current_block: Option<BlockTuple>,
     overflow_block: Option<BlockTuple>,
     current_live_mark: bool,
+    perform_evac: bool,
 }
 
 impl LineAllocator {
@@ -38,6 +39,7 @@ impl LineAllocator {
             current_block: None,
             overflow_block: None,
             current_live_mark: false,
+            perform_evac: false,
         };
     }
 
@@ -75,10 +77,37 @@ impl LineAllocator {
         return None;
     }
 
+    pub fn maybe_evacuate(&mut self, object: GCObjectRef) -> Option<GCObjectRef> {
+        let block_info = unsafe{ self.get_block_ptr(object) };
+        let is_pinned = unsafe{ (*object).is_pinned() };
+        let is_candidate = unsafe{ (*block_info).is_evacuation_candidate() };
+        if is_pinned || !is_candidate {
+            return None;
+        }
+        let size = unsafe{ (*object).object_size() };
+        if let Some(new_object) = self.raw_allocate(size) {
+            unsafe{
+                ptr::copy_nonoverlapping_memory(new_object as *mut u8,
+                                                object as *const u8, size);
+                debug_assert!(*object == *new_object,
+                              "Evacuated object was not copied correcty");
+                (*object).set_forwarded(new_object);
+                self.unset_gc_object(object);
+            }
+            debug!("Evacuated object {} from block {} to {}", object,
+                   block_info, new_object);
+            valgrind_freelike!(object);
+            return Some(new_object);
+        }
+        debug!("Can't evacuation object {} from block {}", object, block_info);
+        return None;
+    }
+
     pub fn prepare_collection(&mut self) -> bool {
         self.unavailable_blocks.extend(self.recyclable_blocks.drain());
         self.unavailable_blocks.extend(self.current_block.take()
                                            .map(|b| b.0).into_iter());
+        self.perform_evac = true;
 
         let perform_cycle_collection = true;
         return perform_cycle_collection;
@@ -86,7 +115,7 @@ impl LineAllocator {
 
     pub fn complete_collection(&mut self) {
         self.mark_histogram.clear();
-        self.perform_defrag = false;
+        self.perform_evac = false;
         self.sweep_unavailable_blocks();
     }
 

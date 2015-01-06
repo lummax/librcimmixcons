@@ -8,6 +8,7 @@ use std::mem;
 use constants::LINE_SIZE;
 
 #[repr(C)]
+#[derive(PartialEq)]
 #[allow(missing_copy_implementations)]
 pub struct GCHeader {
     reference_count: libc::size_t,
@@ -27,6 +28,8 @@ pub struct GCRTTI {
 }
 
 #[repr(C)]
+#[derive(PartialEq)]
+#[allow(raw_pointer_derive)]
 pub struct GCObject {
     header: GCHeader,
     rtti: *const GCRTTI
