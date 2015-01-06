@@ -230,4 +230,27 @@ impl LineAllocator {
         }
         self.unavailable_blocks.extend(unavailable_blocks.into_iter());
     }
+
+    fn establish_hole_threshhold(&self) -> u8 {
+        let mut available_histogram : VecMap<u8> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
+        for block in self.unavailable_blocks.iter() {
+            let (holes, free_lines) = unsafe{ (**block).count_holes_and_available_lines() };
+            if available_histogram.contains_key(&(holes as uint)) {
+                if let Some(val) = available_histogram.get_mut(&(holes as uint)) {
+                    *val += free_lines;
+                }
+            } else { available_histogram.insert(holes as uint, free_lines); }
+        }
+        let mut required_lines = 0 as u8;
+        let mut available_lines = (self.evac_headroom.len() * (NUM_LINES_PER_BLOCK - 1)) as u8;
+
+        for threshold in range(0, NUM_LINES_PER_BLOCK) {
+            required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
+            available_lines -= *available_histogram.get(&threshold).unwrap_or(&0);
+            if available_lines <= required_lines {
+                return threshold as u8;
+            }
+        }
+        return NUM_LINES_PER_BLOCK as u8;
+    }
 }
