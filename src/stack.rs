@@ -49,11 +49,6 @@ fn get_stack_bottom() -> Option<*mut u8> {
 }
 
 #[inline(always)]
-fn get_stack() -> Option<(*mut u8, *mut u8)> {
-    return get_stack_bottom().map(|bottom| (get_stack_top(), bottom))
-}
-
-#[inline(always)]
 #[cfg(all(target_os = "linux", any(target_arch = "x86", target_arch = "x86_64")))]
 fn save_registers() -> setjmp::jmp_buf {
     unsafe {
@@ -66,9 +61,12 @@ fn save_registers() -> setjmp::jmp_buf {
 #[allow(unused_variables)]
 pub fn enumerate_roots(line_allocator: &LineAllocator) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
-    if let Some((top, bottom)) = get_stack() {
-        return range(top as uint, unsafe{ bottom.offset(-7) } as uint )
-            .map(|e| unsafe{ *(e as *const GCObjectRef) })
+    if let Some(bottom) = get_stack_bottom() {
+        let top = get_stack_top();
+        let stack_size = (bottom as uint) - (top as uint) - 8;
+        debug!("Scanning stack of size {} ({} - {})", stack_size, top, bottom);
+        return range(0, stack_size)
+            .map(|o| unsafe{ *(top.offset(o as int) as *const GCObjectRef) })
             .filter(|e| line_allocator.is_gc_object(*e))
             .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();
