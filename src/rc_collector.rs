@@ -52,12 +52,23 @@ impl RCCollector {
         self.decrement_buffer.push_back(object);
     }
 
-    fn increment(&mut self, line_allocator: &mut LineAllocator, object: GCObjectRef) {
+    fn increment(&mut self, line_allocator: &mut LineAllocator,
+                 object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
         debug!("Increment object {}", object);
         if unsafe{ (*object).increment() } {
+            if try_evacuate {
+                if let Some(new_object) = line_allocator.maybe_evacuate(object) {
+                    debug!("Evacuated object {} to {}", object, new_object);
+                    line_allocator.decrement_lines(object);
+                    line_allocator.increment_lines(new_object);
+                    self.modified(new_object);
+                    return Some(new_object);
+                }
+            }
             line_allocator.increment_lines(object);
             self.modified(object);
         }
+        return None;
     }
 
     fn process_old_roots(&mut self) {
@@ -70,7 +81,7 @@ impl RCCollector {
         debug!("Process current roots (size {})", roots.len());
         for root in roots.iter().map(|o| *o) {
             debug!("Process root object: {}", root);
-            self.increment(line_allocator, root);
+            self.increment(line_allocator, root, false);
             self.old_root_buffer.push_back(root);
         }
     }
@@ -80,8 +91,18 @@ impl RCCollector {
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
-            for child in unsafe{ (*object).children() }.into_iter() {
-                self.increment(line_allocator, child);
+            let children = unsafe{ (*object).children() };
+            for (num, child) in children.into_iter().enumerate() {
+                if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
+                    debug!("Child {} is forwarded to {}", child, new_child);
+                    unsafe{ (*object).set_child(num, new_child); }
+                    self.increment(line_allocator, child, false);
+                } else {
+                    if let Some(new_child) = self.increment(line_allocator,
+                                                            child, true) {
+                        unsafe{ (*object).set_child(num, new_child); }
+                    }
+                }
             }
         }
     }
