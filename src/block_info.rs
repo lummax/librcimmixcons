@@ -11,6 +11,7 @@ use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 pub struct BlockInfo {
     mmap: os::MemoryMap,
     line_counter: VecMap<u8>,
+    hole_count: u8,
 }
 
 impl BlockInfo {
@@ -19,6 +20,7 @@ impl BlockInfo {
         let mut block = BlockInfo {
             mmap: mmap,
             line_counter: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
+            hole_count: 0,
         };
         block.clear_line_counts();
         return block;
@@ -32,6 +34,16 @@ impl BlockInfo {
         self.update_line_nums(object, false);
     }
 
+    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
+        return (self.hole_count,
+                self.line_counter.values().filter(|&e| *e != 0).count() as u8);
+    }
+
+    pub fn count_holes_and_available_lines(&self) -> (u8, u8) {
+        return (self.hole_count,
+                self.line_counter.values().filter(|&e| *e == 0).count() as u8);
+    }
+
     pub fn clear_line_counts(&mut self) {
         for index in range(0, NUM_LINES_PER_BLOCK) {
             self.line_counter.insert(index, 0);
@@ -40,6 +52,7 @@ impl BlockInfo {
 
     pub fn reset(&mut self) {
         self.clear_line_counts();
+        self.hole_count = 0;
         self.evacuation_candidate = false;
     }
 
@@ -80,16 +93,14 @@ impl BlockInfo {
         };
     }
 
-    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
-        let (holes, _, marked_lines) = self.line_counter.values()
-            .fold((0, false, 0), |(holes, in_hole, marked_lines), &elem|
+    pub fn count_holes(&mut self) {
+        let holes = self.line_counter.values()
+            .fold((0, false), |(holes, in_hole), &elem|
                   match (in_hole, elem) {
-                    (true, 0) => (holes, true, marked_lines),
-                    (true, _) => (holes, false, marked_lines + 1),
-                    (false, 0) => (holes + 1, true, marked_lines),
-                    (false, _) => (holes, false, marked_lines + 1),
-                  });
-        return (holes, marked_lines);
+                    (false, 0) => (holes + 1, true),
+                    (_, _) => (holes, false),
+                  }).0;
+        self.hole_count = holes;
     }
 }
 
