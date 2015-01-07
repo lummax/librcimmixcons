@@ -1,8 +1,6 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-#![feature(macro_rules)]
-
 extern crate rcimmixcons;
 extern crate glob;
 use std::io::Command;

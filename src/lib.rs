@@ -2,7 +2,6 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 #![feature(asm)]
-#![feature(macro_rules)]
 
 extern crate libc;
 use std::{mem, ptr};

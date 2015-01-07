@@ -1,9 +1,8 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-#![macro_escape]
+#![macro_use]
 
-#[macro_export]
 macro_rules! debug(
     ($($args:tt)*) => (
         if cfg!(not(ndebug)) {
@@ -31,7 +30,6 @@ pub mod valgrind {
     pub unsafe fn count_leaks() -> LeakCount { return  LeakCount { leaked: 0 } }
 }
 
-#[macro_export]
 macro_rules! valgrind_malloclike(
     ($addr:expr, $size:expr) => (
         if cfg!(feature = "valgrind") {
@@ -43,7 +41,6 @@ macro_rules! valgrind_malloclike(
     )
 );
 
-#[macro_export]
 macro_rules! valgrind_freelike(
     ($addr:expr) => (
         if cfg!(feature = "valgrind") {
@@ -55,7 +52,6 @@ macro_rules! valgrind_freelike(
     )
 );
 
-#[macro_export]
 macro_rules! valgrind_assert_no_leaks(
     () => (
         if cfg!(feature = "valgrind") {
