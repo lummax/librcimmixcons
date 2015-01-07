@@ -36,6 +36,7 @@ macro_rules! valgrind_malloclike(
     ($addr:expr, $size:expr) => (
         if cfg!(feature = "valgrind") {
             unsafe{
+                debug!("Mark object {} with malloclike_block for valgrind", $addr);
                 ::macros::valgrind::malloclike_block($addr as *const (), $size, 0, true);
             }
         }
@@ -47,6 +48,7 @@ macro_rules! valgrind_freelike(
     ($addr:expr) => (
         if cfg!(feature = "valgrind") {
             unsafe{
+                debug!("Mark object {} with freelike_block for valgrind", $addr);
                 ::macros:: valgrind::freelike_block($addr as *const (), 0);
             }
         }

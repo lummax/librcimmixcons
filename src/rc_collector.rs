@@ -96,6 +96,7 @@ impl RCCollector {
                 for child in unsafe{ (*object).children() }.into_iter() {
                     self.decrement(child);
                 }
+                valgrind_freelike!(object);
             }
         }
     }

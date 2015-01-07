@@ -68,6 +68,7 @@ impl LineAllocator {
         debug!("Request to allocate an object of size {}", size);
         if let Some(object) = self.raw_allocate(size) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
+            valgrind_malloclike!(object, size);
             return Some(object);
         }
         return None;
@@ -111,12 +112,6 @@ impl LineAllocator {
             }
         }
         self.unavailable_blocks.extend(unavailable_blocks.into_iter());
-
-        if cfg!(feature = "valgrind") {
-            for object in self.object_map_backup.drain() {
-                valgrind_freelike!(object);
-            }
-        }
     }
 
     pub fn prepare_immix_collection(&mut self) {
@@ -132,6 +127,12 @@ impl LineAllocator {
 
     pub fn complete_immix_collection(&mut self) {
         self.current_live_mark = !self.current_live_mark;
+        if cfg!(feature = "valgrind") {
+            for &object in self.object_map_backup.difference(&self.object_map) {
+                valgrind_freelike!(object);
+            }
+            self.object_map_backup.clear();
+        }
     }
 }
 
@@ -155,8 +156,6 @@ impl LineAllocator {
          .map(|(tp, object)| {
              if size < LINE_SIZE { self.current_block = Some(tp);
              } else { self.overflow_block = Some(tp); }
-
-             valgrind_malloclike!(object, size);
              object
          });
     }
