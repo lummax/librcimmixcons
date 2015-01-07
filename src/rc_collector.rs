@@ -77,34 +77,24 @@ impl RCCollector {
 
     fn process_mod_buffer(&mut self, line_allocator: &mut LineAllocator) {
         debug!("Process mod buffer (size {})", self.modified_buffer.len());
-        loop {
-            match self.modified_buffer.pop_front() {
-                None => break,
-                Some(object) => {
-                    debug!("Process object {} in mod buffer", object);
-                    unsafe { (*object).set_logged(false); }
-                    for child in unsafe{ (*object).children() }.into_iter() {
-                        self.increment(line_allocator, child);
-                    }
-                }
+        while let Some(object) = self.modified_buffer.pop_front() {
+            debug!("Process object {} in mod buffer", object);
+            unsafe { (*object).set_logged(false); }
+            for child in unsafe{ (*object).children() }.into_iter() {
+                self.increment(line_allocator, child);
             }
         }
     }
 
     fn process_decrement_buffer(&mut self, line_allocator: &mut LineAllocator) {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
-        loop {
-            match self.decrement_buffer.pop_front() {
-                None => break,
-                Some(object) => {
-                    debug!("Process object {} in dec buffer", object);
-                    if unsafe{ (*object).decrement() } {
-                        line_allocator.unset_gc_object(object);
-                        line_allocator.decrement_lines(object);
-                        for child in unsafe{ (*object).children() }.into_iter() {
-                            self.decrement(child);
-                        }
-                    }
+        while let Some(object) =  self.decrement_buffer.pop_front() {
+            debug!("Process object {} in dec buffer", object);
+            if unsafe{ (*object).decrement() } {
+                line_allocator.unset_gc_object(object);
+                line_allocator.decrement_lines(object);
+                for child in unsafe{ (*object).children() }.into_iter() {
+                    self.decrement(child);
                 }
             }
         }
