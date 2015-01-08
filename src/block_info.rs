@@ -77,8 +77,9 @@ impl BlockInfo {
     }
 
     pub fn scan_block(&self, last_high_offset: u16) -> Option<(u16, u16)> {
-        debug!("Scanning block {:p} for a hole", self);
         let last_high_index = last_high_offset as uint / LINE_SIZE;
+        debug!("Scanning block {:p} for a hole with last_high_offset {}",
+               self, last_high_index);
         let mut low_index = NUM_LINES_PER_BLOCK - 1;
         for index in range(last_high_index + 1, NUM_LINES_PER_BLOCK) {
             if self.line_counter.get(&index).map_or(true, |c| *c == 0) {
@@ -87,22 +88,24 @@ impl BlockInfo {
                 break;
             }
         }
-        debug!("Found low index {} in block {:p}", low_index, self);
         let mut high_index = NUM_LINES_PER_BLOCK;
-        for index in range(low_index + 1, NUM_LINES_PER_BLOCK) {
+        for index in range(low_index, NUM_LINES_PER_BLOCK) {
             if self.line_counter.get(&index).map_or(false, |c| *c != 0) {
                 high_index = index;
                 break;
             }
         }
-        debug!("Found high index {} in block {:p}", high_index, self);
-        return if low_index < (NUM_LINES_PER_BLOCK - 1) {
-            Some(((low_index * LINE_SIZE) as u16,
-            (high_index * LINE_SIZE - 1) as u16))
-        } else {
-            debug!("Found no hole in block {:p}", self);
-            None
-        };
+        if low_index == high_index && high_index != (NUM_LINES_PER_BLOCK - 1) {
+            debug!("Rescan: Found single line hole? in block {:p}", self);
+            return self.scan_block((high_index * LINE_SIZE - 1) as u16);
+        } else if low_index < (NUM_LINES_PER_BLOCK - 1) {
+            debug!("Found low index {} and high index {} in block {:p}",
+                   low_index, high_index, self);
+            return Some(((low_index * LINE_SIZE) as u16,
+                         (high_index * LINE_SIZE - 1) as u16));
+        }
+        debug!("Found no hole in block {:p}", self);
+        return None;
     }
 
     pub fn count_holes(&mut self) {
