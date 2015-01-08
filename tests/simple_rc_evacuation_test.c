@@ -3,6 +3,7 @@
 
 #include "../src/rcimmixcons.h"
 #include <stdio.h>
+#include <assert.h>
 
 typedef struct {
     GCObject object;
@@ -21,10 +22,12 @@ static GCRTTI compositeObjectRTTI = {sizeof(CompositeObject), 15};
 
 CompositeObject* build_object(RCImmixCons* collector) {
     CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, &compositeObjectRTTI);
+    assert(composite_object != NULL);
     printf("(mutator) Address of composite_object: %p\n", composite_object);
     fflush(stdout);
     for (int i = 1; i < 31; i++) {
         SimpleObject* simpleObject = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+        assert(simpleObject != NULL);
         if (i & 2) {
             int index = ((i + 1) / 2) - 1;
             composite_object->attributes[index] = simpleObject;
@@ -46,15 +49,20 @@ void exchange_attributes(CompositeObject* object_a, CompositeObject* object_b) {
 
 int main() {
     RCImmixCons* collector = rcx_create();
+    assert(collector != NULL);
 
     for (int times = 0; times < 3; times++) { build_object(collector); }
     CompositeObject* composite_object_a = build_object(collector);
     rcx_collect(collector);
+    assert(composite_object_a != NULL);
 
     CompositeObject* composite_object_b = build_object(collector);
     rcx_write_barrier(collector, (GCObject*) composite_object_a);
+    assert(composite_object_a != NULL);
     exchange_attributes(composite_object_a, composite_object_b);
     rcx_collect(collector);
+    assert(composite_object_a != NULL);
+    assert(composite_object_b != NULL);
 
     rcx_destroy(collector);
     return 0;

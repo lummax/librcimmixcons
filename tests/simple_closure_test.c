@@ -3,6 +3,7 @@
 
 #include "../src/rcimmixcons.h"
 #include <stdio.h>
+#include <assert.h>
 
 typedef struct {
     GCObject object;
@@ -20,8 +21,11 @@ static GCRTTI compositeObjectRTTI = {sizeof(CompositeObject), 2};
 
 CompositeObject* build_object(RCImmixCons* collector) {
     SimpleObject* simple_object_a = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+    assert(simple_object_a != NULL);
     SimpleObject* simple_object_b = (SimpleObject*) rcx_allocate(collector, &simpleObjectRTTI);
+    assert(simple_object_b != NULL);
     CompositeObject* composite_object = (CompositeObject*) rcx_allocate(collector, &compositeObjectRTTI);
+    assert(composite_object != NULL);
     printf("(mutator) Address of simple_object_a: %p\n", simple_object_a);
     printf("(mutator) Address of simple_object_b: %p\n", simple_object_b);
     printf("(mutator) Address of composite_object: %p\n", composite_object);
@@ -33,8 +37,10 @@ CompositeObject* build_object(RCImmixCons* collector) {
 
 int main() {
     RCImmixCons* collector = rcx_create();
+    assert(collector != NULL);
     CompositeObject* composite_object = build_object(collector);
     rcx_collect(collector);
+    assert(composite_object != NULL);
     rcx_destroy(collector);
     return 0;
 }

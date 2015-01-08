@@ -3,6 +3,7 @@
 
 #include "../src/rcimmixcons.h"
 #include <stdio.h>
+#include <assert.h>
 
 typedef struct CicleObject {
     GCObject object;
@@ -14,8 +15,11 @@ static GCRTTI CircleObjectRtti = {sizeof(CicleObject), 1};
 
 void build_object(RCImmixCons* collector) {
     CicleObject* new_cicle_object_a = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
+    assert(new_cicle_object_a != NULL);
     CicleObject* new_cicle_object_b = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
+    assert(new_cicle_object_b != NULL);
     CicleObject* new_cicle_object_c = (CicleObject*) rcx_allocate(collector, &CircleObjectRtti);
+    assert(new_cicle_object_c != NULL);
     printf("(mutator) Address of new_cicle_object_a: %p\n", new_cicle_object_a);
     printf("(mutator) Address of new_cicle_object_b: %p\n", new_cicle_object_b);
     printf("(mutator) Address of new_cicle_object_c: %p\n", new_cicle_object_b);
@@ -27,6 +31,7 @@ void build_object(RCImmixCons* collector) {
 
 int main() {
     RCImmixCons* collector = rcx_create();
+    assert(collector != NULL);
     for(int times = 0; times < 3; times++) {
         build_object(collector);
     }
