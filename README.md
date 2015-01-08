@@ -24,11 +24,18 @@ Status
 This is not usable an the moment. Major TODOs are:
 
 - TESTING
-- Implement opportunistic proactive and reactive defragmentation
 - Implement a Large-Object-Space
 - Optimize `GCHeader` fields and use limited reference count bits
 - Implement multi-threading (only single-thread applications are supported right now)
 - Improve performance
+
+What somewhat works (please refer to the integration tests in `tests/`):
+
+- The C FFI and Valgrind integration
+- Simple allocation and and overflow allocation
+- Deferred coalesced reference counting collection
+- Immix backup tracing (cycle) collection
+- Opportunistic proactive and reactive defragmentation
 
 Building
 --------
