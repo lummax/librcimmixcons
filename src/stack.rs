@@ -13,21 +13,12 @@ use gc_object::GCObjectRef;
 use line_allocator::LineAllocator;
 
 #[inline(always)]
-#[cfg(target_arch = "x86")]
-#[allow(unused_assignments)]
 fn get_stack_top() -> *mut u8 {
-    let mut top = ptr::null_mut();
-    unsafe { asm!("movl %esp, %eax" : "=eax" (top)); }
-    return top;
-}
-
-#[inline(always)]
-#[cfg(target_arch = "x86_64")]
-#[allow(unused_assignments)]
-fn get_stack_top() -> *mut u8 {
-    let mut top = ptr::null_mut();
-    unsafe { asm!("movq %rsp, %rax" : "=rax" (top)); }
-    return top;
+    extern {
+        #[link_name = "llvm.frameaddress"]
+        fn frameaddress(level: i32) -> *mut u8;
+    }
+    unsafe{ return frameaddress(0); }
 }
 
 #[inline(always)]
