@@ -70,7 +70,6 @@ impl LineAllocator {
         debug!("Request to allocate an object of size {}", size);
         if let Some(object) = self.raw_allocate(size) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
-            valgrind_malloclike!(object, size);
             return Some(object);
         }
         return None;
@@ -133,6 +132,8 @@ impl LineAllocator {
          .map(|(tp, object)| {
              if size < LINE_SIZE { self.current_block = Some(tp);
              } else { self.overflow_block = Some(tp); }
+             valgrind_malloclike!(object, size);
+             self.set_gc_object(object);
              object
          });
     }
@@ -176,9 +177,8 @@ impl LineAllocator {
         -> (BlockTuple, GCObjectRef) {
             let (block, low, high) = block_tuple;
             let object = unsafe { (*block).offset(low as uint) };
-            self.set_gc_object(object);
             debug!("Allocated object {} of size {} in {} (object={})",
-            object, size, block, size >= LINE_SIZE);
+                   object, size, block, size >= LINE_SIZE);
             return ((block, low + size as u16, high), object);
         }
 
