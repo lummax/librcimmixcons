@@ -38,7 +38,8 @@ impl RCImmixCons {
         // XXX use LOS if size > BLOCK_SIZE - LINE_SIZE
         assert!(unsafe{ (*rtti).object_size() }
                 <= constants::BLOCK_SIZE - constants::LINE_SIZE);
-        return self.line_allocator.allocate(rtti);
+        return self.line_allocator.allocate(rtti)
+                                  .or_else(|| { self.collect(); self.allocate(rtti) });
     }
 
     pub fn collect(&mut self) {
