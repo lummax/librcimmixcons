@@ -22,10 +22,10 @@ pub mod valgrind {
 #[allow(unused_variables)]
 pub mod valgrind {
     pub struct LeakCount {
-        pub leaked: uint,
+        pub leaked: usize,
     }
-    pub unsafe fn malloclike_block(addr: *const (), size: uint, redzone: uint, is_zeroed: bool) { }
-    pub unsafe fn freelike_block(addr: *const (), redzone: uint) { }
+    pub unsafe fn malloclike_block(addr: *const (), size: usize, redzone: usize, is_zeroed: bool) { }
+    pub unsafe fn freelike_block(addr: *const (), redzone: usize) { }
     pub unsafe fn do_quick_leak_check() { }
     pub unsafe fn count_leaks() -> LeakCount { return  LeakCount { leaked: 0 } }
 }
@@ -34,7 +34,7 @@ macro_rules! valgrind_malloclike(
     ($addr:expr, $size:expr) => (
         if cfg!(feature = "valgrind") {
             unsafe{
-                debug!("Mark object {} with malloclike_block for valgrind", $addr);
+                debug!("Mark object {:p} with malloclike_block for valgrind", $addr);
                 ::macros::valgrind::malloclike_block($addr as *const (), $size, 0, true);
             }
         }
@@ -45,7 +45,7 @@ macro_rules! valgrind_freelike(
     ($addr:expr) => (
         if cfg!(feature = "valgrind") {
             unsafe{
-                debug!("Mark object {} with freelike_block for valgrind", $addr);
+                debug!("Mark object {:p} with freelike_block for valgrind", $addr);
                 ::macros:: valgrind::freelike_block($addr as *const (), 0);
             }
         }

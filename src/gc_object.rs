@@ -38,25 +38,25 @@ pub struct GCObject {
 pub type GCObjectRef = *mut GCObject;
 
 impl GCRTTI {
-    pub fn new(object_size: uint, variables: uint) -> GCRTTI {
+    pub fn new(object_size: usize, variables: usize) -> GCRTTI {
         return GCRTTI {
             object_size: object_size as libc::size_t,
             variables: variables as libc::size_t,
         };
     }
 
-    pub fn object_size(&self) -> uint {
-        return self.object_size as uint;
+    pub fn object_size(&self) -> usize {
+        return self.object_size as usize;
     }
 
-    pub fn variables(&self) -> uint {
-        return self.variables as uint;
+    pub fn variables(&self) -> usize {
+        return self.variables as usize;
     }
 }
 
 impl GCObject {
     pub fn new(rtti: *const GCRTTI, mark: bool) -> GCObject {
-        debug!("GCobject::new(rtti={}, mark={}", rtti, mark);
+        debug!("GCobject::new(rtti={:p}, mark={}", rtti, mark);
         let size = unsafe{ (*rtti).object_size() };
         return GCObject {
             header: GCHeader {
@@ -100,7 +100,7 @@ impl GCObject {
     }
 
     pub fn set_forwarded(&mut self, new: GCObjectRef) {
-        debug!("Set object {:p} forwarded to {}", self, new);
+        debug!("Set object {:p} forwarded to {:p}", self, new);
         self.header.forwarded = true;
         self.rtti = new as *const GCRTTI;
     }
@@ -116,7 +116,7 @@ impl GCObject {
         return self.header.spans_lines;
     }
 
-    pub fn object_size(&self) -> uint {
+    pub fn object_size(&self) -> usize {
         return unsafe{ (*self.rtti).object_size() };
     }
 
@@ -140,10 +140,10 @@ impl GCObject {
         return false;
     }
 
-    pub fn set_child(&mut self, num: uint, child: GCObjectRef) {
+    pub fn set_child(&mut self, num: usize, child: GCObjectRef) {
         unsafe {
             let base: *mut GCObjectRef = mem::transmute(&self.rtti);
-            let address = base.offset((num + 1) as int);
+            let address = base.offset((num + 1) as isize);
             *address = child;
         }
     }
@@ -151,9 +151,9 @@ impl GCObject {
     pub fn children(&mut self) -> Vec<GCObjectRef> {
         let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
         let variables = unsafe{ (*self.rtti).variables() };
-        debug!("Requested children for object: {:p} (rtti: {}, count: {})",
+        debug!("Requested children for object: {:p} (rtti: {:p}, count: {})",
                self, self.rtti, variables);
-        return range(1, variables + 1).map(|i| unsafe{ *base.offset(i as int) })
-                                      .collect();
+        return (1..(variables + 1)).map(|i| unsafe{ *base.offset(i as isize) })
+                                   .collect();
     }
 }

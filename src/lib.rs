@@ -1,6 +1,7 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
+#![allow(unstable)]
 #![feature(link_llvm_intrinsics)]
 
 extern crate libc;
@@ -62,7 +63,7 @@ impl RCImmixCons {
 
 #[no_mangle]
 pub extern fn rcx_create() -> *mut RCImmixCons {
-    return unsafe { mem::transmute(box RCImmixCons::new()) };
+    return unsafe { mem::transmute(Box::new(RCImmixCons::new())) };
 }
 
 #[no_mangle]

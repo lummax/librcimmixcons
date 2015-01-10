@@ -52,7 +52,7 @@ fn get_and_return_single_block() {
 fn get_and_return_multiple_blocks() {
     let mut block_allocator = BlockAllocator::new();
     let mut blocks = Vec::new();
-    for _ in range(0, 50u) {
+    for _ in range(0, 50us) {
         blocks.push(block_allocator.get_block().unwrap());
     }
     for block in blocks.into_iter() {

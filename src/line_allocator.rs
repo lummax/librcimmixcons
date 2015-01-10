@@ -94,12 +94,12 @@ impl LineAllocator {
                 (*object).set_forwarded(new_object);
                 self.unset_gc_object(object);
             }
-            debug!("Evacuated object {} from block {} to {}", object,
+            debug!("Evacuated object {:p} from block {:p} to {:p}", object,
                    block_info, new_object);
             valgrind_freelike!(object);
             return Some(new_object);
         }
-        debug!("Can't evacuation object {} from block {}", object, block_info);
+        debug!("Can't evacuation object {:p} from block {:p}", object, block_info);
         return None;
     }
 
@@ -159,11 +159,11 @@ impl LineAllocator {
 
 impl LineAllocator {
     unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
-        let block_offset = object as uint % BLOCK_SIZE;
-        return mem::transmute((object as *mut u8).offset(-(block_offset as int)));
+        let block_offset = object as usize % BLOCK_SIZE;
+        return mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
     }
 
-    fn raw_allocate(&mut self, size: uint) -> Option<GCObjectRef> {
+    fn raw_allocate(&mut self, size: usize) -> Option<GCObjectRef> {
         return if size < LINE_SIZE {
             self.current_block.take()
                               .and_then(|tp| self.scan_for_hole(size, tp))
@@ -183,10 +183,10 @@ impl LineAllocator {
          });
     }
 
-    fn scan_for_hole(&mut self, size: uint, block_tuple: BlockTuple)
+    fn scan_for_hole(&mut self, size: usize, block_tuple: BlockTuple)
         -> Option<BlockTuple> {
             let (block, low, high) = block_tuple;
-            return match (high - low) as uint >= size {
+            return match (high - low) as usize >= size {
                 true => {
                     debug!("Found hole in block {:p}", block);
                     Some(block_tuple)
@@ -203,7 +203,7 @@ impl LineAllocator {
             };
         }
 
-    fn scan_recyclables(&mut self, size: uint) -> Option<BlockTuple> {
+    fn scan_recyclables(&mut self, size: usize) -> Option<BlockTuple> {
         return match self.recyclable_blocks.pop_front() {
             None => None,
             Some(block) => match unsafe{ (*block).scan_block((LINE_SIZE - 1) as u16) } {
@@ -218,11 +218,11 @@ impl LineAllocator {
         };
     }
 
-    fn allocate_from_block(&mut self, size: uint, block_tuple: BlockTuple)
+    fn allocate_from_block(&mut self, size: usize, block_tuple: BlockTuple)
         -> (BlockTuple, GCObjectRef) {
             let (block, low, high) = block_tuple;
-            let object = unsafe { (*block).offset(low as uint) };
-            debug!("Allocated object {} of size {} in {} (object={})",
+            let object = unsafe { (*block).offset(low as usize) };
+            debug!("Allocated object {:p} of size {} in {:p} (object={})",
                    object, size, block, size >= LINE_SIZE);
             return ((block, low + size as u16, high), object);
         }
@@ -254,12 +254,12 @@ impl LineAllocator {
             } else {
                 unsafe{ (*block).count_holes(); }
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
-                if self.mark_histogram.contains_key(&(holes as uint)) {
-                    if let Some(val) = self.mark_histogram.get_mut(&(holes as uint)) {
+                if self.mark_histogram.contains_key(&(holes as usize)) {
+                    if let Some(val) = self.mark_histogram.get_mut(&(holes as usize)) {
                         *val += marked_lines;
                     }
-                } else { self.mark_histogram.insert(holes as uint, marked_lines); }
-                debug!("Found {} holes and {} marked lines in block {}",
+                } else { self.mark_histogram.insert(holes as usize, marked_lines); }
+                debug!("Found {} holes and {} marked lines in block {:p}",
                        holes, marked_lines, block);
                 match holes {
                     0 => {
@@ -280,16 +280,16 @@ impl LineAllocator {
         let mut available_histogram : VecMap<u8> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
         for block in self.unavailable_blocks.iter() {
             let (holes, free_lines) = unsafe{ (**block).count_holes_and_available_lines() };
-            if available_histogram.contains_key(&(holes as uint)) {
-                if let Some(val) = available_histogram.get_mut(&(holes as uint)) {
+            if available_histogram.contains_key(&(holes as usize)) {
+                if let Some(val) = available_histogram.get_mut(&(holes as usize)) {
                     *val += free_lines;
                 }
-            } else { available_histogram.insert(holes as uint, free_lines); }
+            } else { available_histogram.insert(holes as usize, free_lines); }
         }
         let mut required_lines = 0 as u8;
         let mut available_lines = (self.evac_headroom.len() * (NUM_LINES_PER_BLOCK - 1)) as u8;
 
-        for threshold in range(0, NUM_LINES_PER_BLOCK) {
+        for threshold in (0..NUM_LINES_PER_BLOCK) {
             required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
             available_lines -= *available_histogram.get(&threshold).unwrap_or(&0);
             if available_lines <= required_lines {

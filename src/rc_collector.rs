@@ -32,7 +32,7 @@ impl RCCollector {
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        debug!("Write barrier on object {}", object);
+        debug!("Write barrier on object {:p}", object);
         self.modified(object);
         for child in unsafe{ (*object).children() }.into_iter() {
             self.decrement(child);
@@ -43,22 +43,22 @@ impl RCCollector {
 
 impl RCCollector {
     fn modified(&mut self, object: GCObjectRef) {
-        debug!("Push object {} into mod buffer", object);
+        debug!("Push object {:p} into mod buffer", object);
         self.modified_buffer.push_back(object);
     }
 
     fn decrement(&mut self, object: GCObjectRef) {
-        debug!("Push object {} into dec buffer", object);
+        debug!("Push object {:p} into dec buffer", object);
         self.decrement_buffer.push_back(object);
     }
 
     fn increment(&mut self, line_allocator: &mut LineAllocator,
                  object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
-        debug!("Increment object {}", object);
+        debug!("Increment object {:p}", object);
         if unsafe{ (*object).increment() } {
             if try_evacuate {
                 if let Some(new_object) = line_allocator.maybe_evacuate(object) {
-                    debug!("Evacuated object {} to {}", object, new_object);
+                    debug!("Evacuated object {:p} to {:p}", object, new_object);
                     line_allocator.decrement_lines(object);
                     line_allocator.increment_lines(new_object);
                     self.modified(new_object);
@@ -80,7 +80,7 @@ impl RCCollector {
                              roots: &[GCObjectRef]) {
         debug!("Process current roots (size {})", roots.len());
         for root in roots.iter().map(|o| *o) {
-            debug!("Process root object: {}", root);
+            debug!("Process root object: {:p}", root);
             self.increment(line_allocator, root, false);
             self.old_root_buffer.push_back(root);
         }
@@ -89,12 +89,12 @@ impl RCCollector {
     fn process_mod_buffer(&mut self, line_allocator: &mut LineAllocator) {
         debug!("Process mod buffer (size {})", self.modified_buffer.len());
         while let Some(object) = self.modified_buffer.pop_front() {
-            debug!("Process object {} in mod buffer", object);
+            debug!("Process object {:p} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
             let children = unsafe{ (*object).children() };
             for (num, child) in children.into_iter().enumerate() {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
-                    debug!("Child {} is forwarded to {}", child, new_child);
+                    debug!("Child {:p} is forwarded to {:p}", child, new_child);
                     unsafe{ (*object).set_child(num, new_child); }
                     self.increment(line_allocator, child, false);
                 } else {
@@ -110,7 +110,7 @@ impl RCCollector {
     fn process_decrement_buffer(&mut self, line_allocator: &mut LineAllocator) {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
         while let Some(object) =  self.decrement_buffer.pop_front() {
-            debug!("Process object {} in dec buffer", object);
+            debug!("Process object {:p} in dec buffer", object);
             if unsafe{ (*object).decrement() } {
                 line_allocator.unset_gc_object(object);
                 line_allocator.decrement_lines(object);

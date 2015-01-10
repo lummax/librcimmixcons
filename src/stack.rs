@@ -35,7 +35,7 @@ fn get_stack_bottom() -> Option<*mut u8> {
             return None;
         }
         pthread::pthread_attr_destroy(&mut attr);
-        return Some(stackaddr.offset(stacksize as int) as *mut u8);
+        return Some(stackaddr.offset(stacksize as isize) as *mut u8);
     }
 }
 
@@ -54,10 +54,10 @@ pub fn enumerate_roots(line_allocator: &LineAllocator) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
     if let Some(bottom) = get_stack_bottom() {
         let top = get_stack_top();
-        let stack_size = (bottom as uint) - (top as uint) - 8;
-        debug!("Scanning stack of size {} ({} - {})", stack_size, top, bottom);
-        return range(0, stack_size)
-            .map(|o| unsafe{ *(top.offset(o as int) as *const GCObjectRef) })
+        let stack_size = (bottom as usize) - (top as usize) - 8;
+        debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
+        return (0..stack_size)
+            .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
             .filter(|e| line_allocator.is_gc_object(*e))
             .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();

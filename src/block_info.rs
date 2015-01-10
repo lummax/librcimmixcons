@@ -57,7 +57,7 @@ impl BlockInfo {
     }
 
     pub fn clear_line_counts(&mut self) {
-        for index in range(0, NUM_LINES_PER_BLOCK) {
+        for index in (0..NUM_LINES_PER_BLOCK) {
             self.line_counter.insert(index, 0);
         }
     }
@@ -72,16 +72,16 @@ impl BlockInfo {
         return self.line_counter.values().all(|v| *v == 0);
     }
 
-    pub fn offset(&self, offset: uint) -> GCObjectRef {
-        return unsafe{ self.mmap.data().offset(offset as int) } as GCObjectRef;
+    pub fn offset(&self, offset: usize) -> GCObjectRef {
+        return unsafe{ self.mmap.data().offset(offset as isize) } as GCObjectRef;
     }
 
     pub fn scan_block(&self, last_high_offset: u16) -> Option<(u16, u16)> {
-        let last_high_index = last_high_offset as uint / LINE_SIZE;
+        let last_high_index = last_high_offset as usize / LINE_SIZE;
         debug!("Scanning block {:p} for a hole with last_high_offset {}",
                self, last_high_index);
         let mut low_index = NUM_LINES_PER_BLOCK - 1;
-        for index in range(last_high_index + 1, NUM_LINES_PER_BLOCK) {
+        for index in ((last_high_index + 1)..NUM_LINES_PER_BLOCK) {
             if self.line_counter.get(&index).map_or(true, |c| *c == 0) {
                 // +1 to skip the next line in case an object straddles lines
                 low_index = index + 1;
@@ -89,7 +89,7 @@ impl BlockInfo {
             }
         }
         let mut high_index = NUM_LINES_PER_BLOCK;
-        for index in range(low_index, NUM_LINES_PER_BLOCK) {
+        for index in (low_index..NUM_LINES_PER_BLOCK) {
             if self.line_counter.get(&index).map_or(false, |c| *c != 0) {
                 high_index = index;
                 break;
@@ -120,8 +120,8 @@ impl BlockInfo {
 }
 
 impl BlockInfo {
-    fn object_to_line_num(object: GCObjectRef) -> uint {
-        return (object as uint % BLOCK_SIZE) / LINE_SIZE;
+    fn object_to_line_num(object: GCObjectRef) -> usize {
+        return (object as usize % BLOCK_SIZE) / LINE_SIZE;
     }
 
     fn update_line_nums(&mut self, object: GCObjectRef, increment: bool) {
@@ -130,7 +130,7 @@ impl BlockInfo {
         // that does not matter as we always skip a line in scan_block()
         let line_num = BlockInfo::object_to_line_num(object);
         let object_size = unsafe{ (*object).object_size() };
-        for line in range(line_num, line_num + (object_size / LINE_SIZE) + 1) {
+        for line in line_num..(line_num + (object_size / LINE_SIZE) + 1) {
             match increment {
                 true => {
                     if self.line_counter.contains_key(&line) {
