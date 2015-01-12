@@ -14,23 +14,21 @@ mod macros;
 mod constants;
 mod gc_object;
 mod block_info;
-mod block_allocator;
-mod line_allocator;
+mod immix_space;
 mod rc_collector;
 mod immix_collector;
 mod stack;
 mod posix;
 
 pub struct RCImmixCons {
-    line_allocator: line_allocator::LineAllocator,
+    immix_space: immix_space::ImmixSpace,
     rc_collector: rc_collector::RCCollector,
 }
 
 impl RCImmixCons {
     pub fn new() -> RCImmixCons {
-        let block_allocator = block_allocator::BlockAllocator::new();
         return RCImmixCons {
-            line_allocator: line_allocator::LineAllocator::new(block_allocator),
+            immix_space: immix_space::ImmixSpace::new(),
             rc_collector: rc_collector::RCCollector::new(),
         };
     }
@@ -39,23 +37,23 @@ impl RCImmixCons {
         // XXX use LOS if size > BLOCK_SIZE - LINE_SIZE
         assert!(unsafe{ (*rtti).object_size() }
                 <= constants::BLOCK_SIZE - constants::LINE_SIZE);
-        return self.line_allocator.allocate(rtti)
+        return self.immix_space.allocate(rtti)
                                   .or_else(|| { self.collect(); self.allocate(rtti) });
     }
 
     pub fn collect(&mut self) {
-        let perform_cc = self.line_allocator.prepare_collection();
-        let roots = stack::enumerate_roots(&self.line_allocator);
-        self.rc_collector.collect(&mut self.line_allocator, roots.as_slice());
+        let perform_cc = self.immix_space.prepare_collection();
+        let roots = stack::enumerate_roots(&self.immix_space);
+        self.rc_collector.collect(&mut self.immix_space, roots.as_slice());
         if perform_cc {
-            ImmixCollector::collect(&mut self.line_allocator, roots.as_slice());
+            ImmixCollector::collect(&mut self.immix_space, roots.as_slice());
         }
-        self.line_allocator.complete_collection();
+        self.immix_space.complete_collection();
         valgrind_assert_no_leaks!();
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        if self.line_allocator.is_gc_object(object) {
+        if self.immix_space.is_gc_object(object) {
             self.rc_collector.write_barrier(object);
         }
     }

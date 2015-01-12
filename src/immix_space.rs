@@ -2,8 +2,7 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 use std::collections::{RingBuf, HashSet, VecMap};
-use std::mem;
-use std::ptr;
+use std::{mem, ptr, os};
 
 use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
@@ -12,7 +11,7 @@ use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 type BlockTuple = (*mut BlockInfo, u16, u16);
 
-pub struct LineAllocator {
+pub struct ImmixSpace {
     block_allocator: BlockAllocator,
     object_map: HashSet<GCObjectRef>,
     object_map_backup: HashSet<GCObjectRef>,
@@ -26,10 +25,10 @@ pub struct LineAllocator {
     perform_evac: bool,
 }
 
-impl LineAllocator {
-    pub fn new(block_allocator: BlockAllocator) -> LineAllocator {
-        return LineAllocator {
-            block_allocator: block_allocator,
+impl ImmixSpace {
+    pub fn new() -> ImmixSpace {
+        return ImmixSpace {
+            block_allocator: BlockAllocator::new(),
             object_map: HashSet::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
@@ -157,7 +156,7 @@ impl LineAllocator {
     }
 }
 
-impl LineAllocator {
+impl ImmixSpace {
     unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
         let block_offset = object as usize % BLOCK_SIZE;
         return mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
