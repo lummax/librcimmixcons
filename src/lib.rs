@@ -13,7 +13,6 @@ use immix_collector::ImmixCollector;
 mod macros;
 mod constants;
 mod gc_object;
-mod block_info;
 mod immix_space;
 mod rc_collector;
 mod immix_collector;
