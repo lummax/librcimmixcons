@@ -4,10 +4,44 @@
 use std::collections::{RingBuf, HashSet, VecMap};
 use std::{mem, ptr, os};
 
-use block_allocator::BlockAllocator;
 use block_info::BlockInfo;
-use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK, EVAC_HEADROOM};
+use constants::{BLOCK_SIZE, BUFFER_BLOCK_COUNT, LINE_SIZE,
+                NUM_LINES_PER_BLOCK, EVAC_HEADROOM};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
+
+struct BlockAllocator {
+    free_blocks: Vec<*mut BlockInfo>,
+}
+
+impl BlockAllocator {
+    fn new() -> BlockAllocator {
+        return BlockAllocator {
+            free_blocks: Vec::new(),
+        };
+    }
+
+    fn get_block(&mut self) -> Option<*mut BlockInfo> {
+        let call_mmap = |:| os::MemoryMap::new(BLOCK_SIZE,
+                                               &[os::MapOption::MapReadable,
+                                                 os::MapOption::MapWritable])
+                                          .ok()
+                                          .map(|mmap| unsafe {
+                                              let object = mmap.data() as *mut BlockInfo;
+                                              ptr::write(object, BlockInfo::new(mmap));
+                                              object});
+        return self.free_blocks.pop().or_else(call_mmap);
+    }
+
+    fn return_block(&mut self, block: *mut BlockInfo) {
+        debug!("Returned block {:p}", block);
+        if self.free_blocks.len() < BUFFER_BLOCK_COUNT {
+            unsafe{ (*block).reset() ;}
+            self.free_blocks.push(block);
+        } else {
+            unsafe { ptr::read(block) };
+        }
+    }
+}
 
 type BlockTuple = (*mut BlockInfo, u16, u16);
 
