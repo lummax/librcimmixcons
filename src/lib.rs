@@ -17,7 +17,6 @@ mod immix_space;
 mod rc_collector;
 mod immix_collector;
 mod stack;
-mod posix;
 
 pub struct RCImmixCons {
     immix_space: immix_space::ImmixSpace,
