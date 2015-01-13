@@ -156,25 +156,31 @@ impl BlockInfo {
 
 struct BlockAllocator {
     free_blocks: Vec<*mut BlockInfo>,
+    total_blocks: usize,
 }
 
 impl BlockAllocator {
     fn new() -> BlockAllocator {
         return BlockAllocator {
             free_blocks: Vec::new(),
+            total_blocks: 0,
         };
     }
 
+    fn call_mmap(&mut self) -> Option<*mut BlockInfo> {
+        return os::MemoryMap::new(BLOCK_SIZE,
+                                  &[os::MapOption::MapReadable,
+                                  os::MapOption::MapWritable])
+                             .ok()
+                             .map(|mmap| unsafe {
+                                 self.total_blocks += 1;
+                                 let object = mmap.data() as *mut BlockInfo;
+                                 ptr::write(object, BlockInfo::new(mmap));
+                                 object});
+    }
+
     fn get_block(&mut self) -> Option<*mut BlockInfo> {
-        let call_mmap = |:| os::MemoryMap::new(BLOCK_SIZE,
-                                               &[os::MapOption::MapReadable,
-                                                 os::MapOption::MapWritable])
-                                          .ok()
-                                          .map(|mmap| unsafe {
-                                              let object = mmap.data() as *mut BlockInfo;
-                                              ptr::write(object, BlockInfo::new(mmap));
-                                              object});
-        return self.free_blocks.pop().or_else(call_mmap);
+        return self.free_blocks.pop().or_else(|| self.call_mmap());
     }
 
     fn return_block(&mut self, block: *mut BlockInfo) {
@@ -183,8 +189,17 @@ impl BlockAllocator {
             unsafe{ (*block).reset() ;}
             self.free_blocks.push(block);
         } else {
+            self.total_blocks -= 1;
             unsafe { ptr::read(block) };
         }
+    }
+
+    fn total_blocks(&self) -> usize {
+        return self.total_blocks;
+    }
+
+    fn available_blocks(&self) -> usize {
+        return self.free_blocks.len();
     }
 }
 
