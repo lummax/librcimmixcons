@@ -11,3 +11,6 @@ pub const NUM_LINES_PER_BLOCK: usize = BLOCK_SIZE / LINE_SIZE;
 
 pub const EVAC_HEADROOM: usize = 5;
 pub const BUFFER_BLOCK_COUNT: usize = 10;
+
+pub const CICLE_TRIGGER_THRESHHOLD: f32 = 0.01;
+pub const EVAC_TRIGGER_THRESHHOLD: f32 = 0.01;
