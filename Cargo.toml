@@ -7,7 +7,7 @@ authors = ["lummax <luogpg@googlemail.com>"]
 valgrind = ["vgrs"]
 
 [dependencies.vgrs]
-git = "https://github.com/lummax/vgrs"
+version = "0.1.0"
 optional = true
 
 [dev-dependencies]
