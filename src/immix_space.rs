@@ -6,7 +6,8 @@ use std::num::Int;
 use std::{mem, ptr, os};
 
 use constants::{BLOCK_SIZE, BUFFER_BLOCK_COUNT, LINE_SIZE,
-                NUM_LINES_PER_BLOCK, EVAC_HEADROOM};
+                NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
+                CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 struct BlockInfo {
@@ -297,16 +298,17 @@ impl ImmixSpace {
     }
 
     pub fn prepare_collection(&mut self) -> bool {
-        // XXX The important question is: When to run the defragmentation and
-        // XXX the cycle-collection. The papers describe a minimum-free
-        // XXX threshhold of 1% of free memory. This needs a runtime with
-        // XXX bounded configurable heap-size.
         self.unavailable_blocks.extend(self.recyclable_blocks.drain());
         self.unavailable_blocks.extend(self.current_block.take()
                                            .map(|b| b.0).into_iter());
-        self.perform_evac = true;
 
-        if self.perform_evac {
+        let available_blocks = self.block_allocator.available_blocks();
+        let total_blocks = self.block_allocator.total_blocks();
+        let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
+        let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
+
+        let available_evac_blocks = available_blocks + self.evac_headroom.len();
+        if available_evac_blocks < evac_threshhold {
             let hole_threshhold = self.establish_hole_threshhold();
             self.perform_evac = hole_threshhold > 0
                                 && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
@@ -318,8 +320,7 @@ impl ImmixSpace {
                 }
             }
         }
-        let perform_cycle_collection = true;
-        return perform_cycle_collection;
+        return self.block_allocator.available_blocks() < cycle_theshold;
     }
 
     pub fn complete_collection(&mut self) {
