@@ -44,12 +44,12 @@ int main() {
     RCImmixCons* collector = rcx_create();
     assert(collector != NULL);
     CompositeObject* composite_object = build_object(collector);
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 0);
     assert(composite_object != NULL);
     rcx_write_barrier(collector, (GCObject*) composite_object);
     assert(composite_object != NULL);
     change_object(collector, composite_object);
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 0);
     assert(composite_object != NULL);
     rcx_destroy(collector);
     return 0;

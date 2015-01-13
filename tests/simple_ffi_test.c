@@ -14,7 +14,7 @@ int main() {
     assert(object != NULL);
     printf("(mutator) Address of object: %p\n", object);
     fflush(stdout);
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 0);
     assert(object != NULL);
     rcx_write_barrier(collector, object);
     assert(object != NULL);

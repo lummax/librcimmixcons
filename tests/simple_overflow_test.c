@@ -32,7 +32,7 @@ int main() {
         printf("(mutator) Address of large_object: %p\n", large_object);
         fflush(stdout);
     }
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 0);
     rcx_destroy(collector);
     return 0;
 }

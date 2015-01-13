@@ -35,11 +35,11 @@ int main() {
     for(int times = 0; times < 3; times++) {
         build_object(collector);
     }
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 1);
     for(int times = 0; times < 3; times++) {
         build_object(collector);
     }
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 1);
     rcx_destroy(collector);
     return 0;
 }

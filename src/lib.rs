@@ -36,11 +36,14 @@ impl RCImmixCons {
         assert!(unsafe{ (*rtti).object_size() }
                 <= constants::BLOCK_SIZE - constants::LINE_SIZE);
         return self.immix_space.allocate(rtti)
-                                  .or_else(|| { self.collect(); self.allocate(rtti) });
+                                  .or_else(|| { self.collect(true, true);
+                                                self.allocate(rtti) });
     }
 
-    pub fn collect(&mut self) {
-        let perform_cc = self.immix_space.prepare_collection();
+    pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
+        debug!("Requested colletion (evacuation={}, cycle_collect={})",
+               evacuation, cycle_collect);
+        let perform_cc = self.immix_space.prepare_collection(evacuation, cycle_collect);
         let roots = stack::enumerate_roots(&self.immix_space);
         self.rc_collector.collect(&mut self.immix_space, roots.as_slice());
         if perform_cc {
@@ -69,8 +72,8 @@ pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
 }
 
 #[no_mangle]
-pub extern fn rcx_collect(this: *mut RCImmixCons) {
-    unsafe { (*this).collect() };
+pub extern fn rcx_collect(this: *mut RCImmixCons, evacuation: bool, cycle_collect: bool) {
+    unsafe { (*this).collect(evacuation, cycle_collect) };
 }
 
 #[no_mangle]

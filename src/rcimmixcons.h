@@ -30,7 +30,7 @@ typedef struct {} RCImmixCons;
 
 RCImmixCons* rcx_create();
 GCObject* rcx_allocate(RCImmixCons* collector, GCRTTI* rtti);
-void rcx_collect(RCImmixCons* collector);
+void rcx_collect(RCImmixCons* collector, uint8_t evacuation, uint8_t cycle_collect);
 void rcx_write_barrier(RCImmixCons* collector, GCObject* object);
 void rcx_destroy(RCImmixCons* collector);
 

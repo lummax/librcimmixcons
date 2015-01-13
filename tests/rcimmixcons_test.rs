@@ -45,6 +45,6 @@ fn simple_allocate_test() {
     let chunck3 = collector.allocate(&rtti).unwrap();
     let chunck4 = collector.allocate(&rtti).unwrap();
     let chunck5 = collector.allocate(&rtti).unwrap();
-    collector.collect();
+    collector.collect(false, false);
 }
 

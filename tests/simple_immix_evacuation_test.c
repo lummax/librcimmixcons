@@ -52,13 +52,13 @@ int main() {
     assert(collector != NULL);
 
     for (int times = 0; times < 3; times++) { build_object(collector); }
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 1);
 
     CompositeObject* composite_object_a = build_object(collector);
     assert(composite_object_a != NULL);
     CompositeObject* composite_object_b = build_object(collector);
     assert(composite_object_b != NULL);
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 1);
     assert(composite_object_a != NULL);
     assert(composite_object_b != NULL);
     rcx_write_barrier(collector, (GCObject*) composite_object_a);
@@ -68,7 +68,7 @@ int main() {
     assert(composite_object_a != NULL);
     assert(composite_object_b != NULL);
     exchange_attributes(composite_object_a, composite_object_b);
-    rcx_collect(collector);
+    rcx_collect(collector, 0, 1);
     assert(composite_object_a != NULL);
     assert(composite_object_b != NULL);
 
