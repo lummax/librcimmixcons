@@ -51,7 +51,7 @@ int main() {
     RCImmixCons* collector = rcx_create();
     assert(collector != NULL);
 
-    for (int times = 0; times < 3; times++) { build_object(collector); }
+    for (int times = 0; times < 50; times++) { build_object(collector); }
     rcx_collect(collector, 0, 1);
 
     CompositeObject* composite_object_a = build_object(collector);
