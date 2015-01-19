@@ -5,29 +5,28 @@ use std::collections::{RingBuf, HashSet, VecMap};
 use std::num::Int;
 use std::{mem, ptr, os};
 
-use constants::{BLOCK_SIZE, BUFFER_BLOCK_COUNT, LINE_SIZE,
-                NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
+use constants::{BLOCK_SIZE, LINE_SIZE,
+                NUM_LINES_PER_BLOCK, HEAP_SIZE, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 struct BlockInfo {
-    mmap: os::MemoryMap,
     line_counter: VecMap<u8>,
     hole_count: u8,
     evacuation_candidate: bool,
 }
 
 impl BlockInfo {
-    fn new(mmap: os::MemoryMap) -> BlockInfo {
-        debug_assert!(mmap.len() > mem::size_of::<BlockInfo>());
-        let mut block = BlockInfo {
-            mmap: mmap,
-            line_counter: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
+    fn new() -> BlockInfo {
+        let mut line_counter = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
+        for index in (0..NUM_LINES_PER_BLOCK) {
+            line_counter.insert(index, 0);
+        }
+        return BlockInfo {
+            line_counter: line_counter,
             hole_count: 0,
             evacuation_candidate: false,
         };
-        block.clear_line_counts();
-        return block;
     }
 
     fn set_evacuation_candidate(&mut self, hole_count: u8) {
@@ -74,8 +73,12 @@ impl BlockInfo {
         return self.line_counter.values().all(|v| *v == 0);
     }
 
-    fn offset(&self, offset: usize) -> GCObjectRef {
-        return unsafe{ self.mmap.data().offset(offset as isize) } as GCObjectRef;
+    fn offset(&mut self, offset: usize) -> GCObjectRef {
+        unsafe {
+            let self_ptr = self as *mut BlockInfo;
+            let object = (self_ptr as *mut u8).offset(offset as isize);
+            return object as GCObjectRef;
+        }
     }
 
     fn scan_block(&self, last_high_offset: u16) -> Option<(u16, u16)> {
@@ -156,51 +159,59 @@ impl BlockInfo {
 }
 
 struct BlockAllocator {
+    mmap: os::MemoryMap,
+    data: *mut u8,
+    data_bound: *mut u8,
     free_blocks: Vec<*mut BlockInfo>,
-    total_blocks: usize,
 }
 
 impl BlockAllocator {
     fn new() -> BlockAllocator {
+        let mmap = os::MemoryMap::new(HEAP_SIZE + BLOCK_SIZE,
+                                      &[os::MapOption::MapReadable,
+                                        os::MapOption::MapWritable]).unwrap();
+        let data = unsafe{ mmap.data().offset(((mmap.data() as usize) % BLOCK_SIZE) as isize) };
+        let data_bound = unsafe{ mmap.data().offset(mmap.len() as isize) };
+        debug!("Allocated heap of size {}, usable range: {:p} - {:p} (size {}, {} blocks)",
+                HEAP_SIZE + BLOCK_SIZE, data, data_bound,
+                (data_bound as usize) - (data  as usize),
+                ((data_bound as usize) - (data  as usize)) / BLOCK_SIZE);
         return BlockAllocator {
-            free_blocks: Vec::new(),
-            total_blocks: 0,
+            mmap: mmap,
+            data: data,
+            data_bound: data_bound,
+            free_blocks: Vec::with_capacity(HEAP_SIZE / BLOCK_SIZE),
         };
     }
 
-    fn call_mmap(&mut self) -> Option<*mut BlockInfo> {
-        return os::MemoryMap::new(BLOCK_SIZE,
-                                  &[os::MapOption::MapReadable,
-                                  os::MapOption::MapWritable])
-                             .ok()
-                             .map(|mmap| unsafe {
-                                 self.total_blocks += 1;
-                                 let object = mmap.data() as *mut BlockInfo;
-                                 ptr::write(object, BlockInfo::new(mmap));
-                                 object});
+    fn build_next_block(&mut self) -> Option<*mut BlockInfo> {
+        let block = unsafe{ self.data.offset(BLOCK_SIZE as isize) };
+        if block < self.data_bound {
+            self.data = block;
+            unsafe{ ptr::write(block as *mut BlockInfo, BlockInfo::new()); }
+            return Some(block as *mut BlockInfo);
+        }
+        return None;
     }
 
     fn get_block(&mut self) -> Option<*mut BlockInfo> {
-        return self.free_blocks.pop().or_else(|| self.call_mmap());
+        return self.free_blocks.pop()
+                               .map(|b| { unsafe{ (*b).reset() }; b } )
+                               .or_else(|| self.build_next_block());
     }
 
     fn return_block(&mut self, block: *mut BlockInfo) {
         debug!("Returned block {:p}", block);
-        if self.free_blocks.len() < BUFFER_BLOCK_COUNT {
-            unsafe{ (*block).reset() ;}
-            self.free_blocks.push(block);
-        } else {
-            self.total_blocks -= 1;
-            unsafe { ptr::read(block) };
-        }
+        self.free_blocks.push(block);
     }
 
     fn total_blocks(&self) -> usize {
-        return self.total_blocks;
+        return HEAP_SIZE / BLOCK_SIZE;
     }
 
     fn available_blocks(&self) -> usize {
-        return self.free_blocks.len();
+        return (((self.data_bound as usize) - (self.data as usize)) % BLOCK_SIZE)
+            + self.free_blocks.len();
     }
 }
 
