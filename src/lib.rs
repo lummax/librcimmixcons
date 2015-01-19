@@ -41,7 +41,7 @@ impl RCImmixCons {
     }
 
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
-        debug!("Requested colletion (evacuation={}, cycle_collect={})",
+        debug!("Requested collection (evacuation={}, cycle_collect={})",
                evacuation, cycle_collect);
         let perform_cc = self.immix_space.prepare_collection(evacuation, cycle_collect);
         let roots = stack::enumerate_roots(&self.immix_space);
