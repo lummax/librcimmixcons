@@ -324,22 +324,21 @@ impl ImmixSpace {
 
         let available_blocks = self.block_allocator.available_blocks();
         let total_blocks = self.block_allocator.total_blocks();
-        if !evacuation {
-            let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
-            let available_evac_blocks = available_blocks + self.evac_headroom.len();
-            if available_evac_blocks < evac_threshhold {
-                let hole_threshhold = self.establish_hole_threshhold();
-                self.perform_evac = hole_threshhold > 0
-                    && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
-                if self.perform_evac {
-                    debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
-                           hole_threshhold, self.evac_headroom.len());
-                    for block in self.unavailable_blocks.iter_mut() {
-                        unsafe{ (**block).set_evacuation_candidate(hole_threshhold); }
-                    }
+
+        let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
+        let available_evac_blocks = available_blocks + self.evac_headroom.len();
+        if evacuation || available_evac_blocks < evac_threshhold {
+            let hole_threshhold = self.establish_hole_threshhold();
+            self.perform_evac = hole_threshhold > 0
+                && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
+            if self.perform_evac {
+                debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
+                       hole_threshhold, self.evac_headroom.len());
+                for block in self.unavailable_blocks.iter_mut() {
+                    unsafe{ (**block).set_evacuation_candidate(hole_threshhold); }
                 }
             }
-        } else { self.perform_evac = true; }
+        }
 
         if !cycle_collect {
             let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
