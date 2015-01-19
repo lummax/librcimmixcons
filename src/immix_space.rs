@@ -213,6 +213,11 @@ impl BlockAllocator {
         return (((self.data_bound as usize) - (self.data as usize)) % BLOCK_SIZE)
             + self.free_blocks.len();
     }
+
+    fn is_in_space(&self, object: GCObjectRef) -> bool {
+        return self.mmap.data() < (object as *mut u8)
+            && (object as *mut u8) < self.data_bound;
+    }
 }
 
 type BlockTuple = (*mut BlockInfo, u16, u16);
@@ -258,6 +263,10 @@ impl ImmixSpace {
 
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         return self.object_map.contains(&object);
+    }
+
+    pub fn is_in_space(&self, object: GCObjectRef) -> bool {
+        return self.block_allocator.is_in_space(object);
     }
 
     pub fn current_live_mark(&self) -> bool {
