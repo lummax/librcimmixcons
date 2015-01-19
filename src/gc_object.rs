@@ -154,6 +154,7 @@ impl GCObject {
         debug!("Requested children for object: {:p} (rtti: {:p}, count: {})",
                self, self.rtti, variables);
         return (1..(variables + 1)).map(|i| unsafe{ *base.offset(i as isize) })
+                                   .filter(|o| !o.is_null())
                                    .collect();
     }
 }

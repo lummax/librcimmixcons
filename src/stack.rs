@@ -96,7 +96,7 @@ pub fn enumerate_roots(immix_space: &ImmixSpace) -> Vec<GCObjectRef> {
         debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
         return (0..stack_size)
             .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
-            .filter(|e| immix_space.is_gc_object(*e))
+            .filter(|o| !o.is_null() && immix_space.is_gc_object(*o))
             .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();
     }
