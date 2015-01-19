@@ -33,13 +33,11 @@ int main() {
     RCImmixCons* collector = rcx_create();
     assert(collector != NULL);
     for(int times = 0; times < 3; times++) {
-        build_object(collector);
+        for(int tim = 0; tim < 256; tim++) {
+            build_object(collector);
+        }
+        rcx_collect(collector, 0, 0);
     }
-    rcx_collect(collector, 0, 1);
-    for(int times = 0; times < 3; times++) {
-        build_object(collector);
-    }
-    rcx_collect(collector, 0, 1);
     rcx_destroy(collector);
     return 0;
 }
