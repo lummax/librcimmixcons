@@ -170,7 +170,7 @@ impl BlockAllocator {
         let mmap = os::MemoryMap::new(HEAP_SIZE + BLOCK_SIZE,
                                       &[os::MapOption::MapReadable,
                                         os::MapOption::MapWritable]).unwrap();
-        let data = unsafe{ mmap.data().offset(((mmap.data() as usize) % BLOCK_SIZE) as isize) };
+        let data = unsafe{ mmap.data().offset((BLOCK_SIZE - (mmap.data() as usize) % BLOCK_SIZE) as isize) };
         let data_bound = unsafe{ mmap.data().offset(mmap.len() as isize) };
         debug!("Allocated heap of size {}, usable range: {:p} - {:p} (size {}, {} blocks)",
                 HEAP_SIZE + BLOCK_SIZE, data, data_bound,
