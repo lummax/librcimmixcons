@@ -172,10 +172,13 @@ impl BlockAllocator {
                                         os::MapOption::MapWritable]).unwrap();
         let data = unsafe{ mmap.data().offset((BLOCK_SIZE - (mmap.data() as usize) % BLOCK_SIZE) as isize) };
         let data_bound = unsafe{ mmap.data().offset(mmap.len() as isize) };
-        debug!("Allocated heap of size {}, usable range: {:p} - {:p} (size {}, {} blocks)",
-                HEAP_SIZE + BLOCK_SIZE, data, data_bound,
+        debug!("Allocated heap {:p} of size {}, usable range: {:p} - {:p} (size {}, {} blocks)",
+                mmap.data(), mmap.len(), data, data_bound,
                 (data_bound as usize) - (data  as usize),
                 ((data_bound as usize) - (data  as usize)) / BLOCK_SIZE);
+        debug_assert!((data as usize) % BLOCK_SIZE == 0,
+            "Allocated mmap {:p} is not aligned (offset {})",
+            data, (data as usize) % BLOCK_SIZE);
         return BlockAllocator {
             mmap: mmap,
             data: data,
@@ -188,6 +191,9 @@ impl BlockAllocator {
         let block = unsafe{ self.data.offset(BLOCK_SIZE as isize) };
         if block < self.data_bound {
             self.data = block;
+            debug_assert!((block as usize) % BLOCK_SIZE == 0,
+                "Allocated block {:p} is not aligned (offset {})",
+                block, (block as usize) % BLOCK_SIZE);
             unsafe{ ptr::write(block as *mut BlockInfo, BlockInfo::new()); }
             return Some(block as *mut BlockInfo);
         }
@@ -378,7 +384,9 @@ impl ImmixSpace {
 impl ImmixSpace {
     unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
         let block_offset = object as usize % BLOCK_SIZE;
-        return mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
+        let block = mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
+        debug!("Block for object {:p}: {:p} with offset: {}", object, block, block_offset);
+        return block;
     }
 
     fn raw_allocate(&mut self, size: usize) -> Option<GCObjectRef> {
