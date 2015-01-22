@@ -38,6 +38,10 @@ impl BlockInfo {
     }
 
     fn is_in_block(&self, object: GCObjectRef) -> bool {
+        // This works because we get zeroed memory from the OS, so
+        // self.allocated will be false if this block is not initialized and
+        // this method gets only called for objects within the ImmixSpace.
+        // After the first initialization the field is properly managed.
         if self.allocated {
             let self_ptr = self as *const BlockInfo as *const u8;
             let self_bound = unsafe{ self_ptr.offset(BLOCK_SIZE as isize)};
