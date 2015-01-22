@@ -12,6 +12,8 @@ use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 struct BlockInfo {
     line_counter: VecMap<u8>,
+    object_map: HashSet<GCObjectRef>,
+    allocated: bool,
     hole_count: u8,
     evacuation_candidate: bool,
 }
@@ -24,9 +26,54 @@ impl BlockInfo {
         }
         return BlockInfo {
             line_counter: line_counter,
+            object_map: HashSet::new(),
+            allocated: false,
             hole_count: 0,
             evacuation_candidate: false,
         };
+    }
+
+    fn set_allocated(&mut self) {
+        self.allocated = true;
+    }
+
+    fn is_in_block(&self, object: GCObjectRef) -> bool {
+        if self.allocated {
+            let self_ptr = self as *const BlockInfo as *const u8;
+            let self_bound = unsafe{ self_ptr.offset(BLOCK_SIZE as isize)};
+            return self_ptr < (object as *const u8)
+                && (object as *const u8) <  self_bound;
+        }
+        return false;
+    }
+
+    fn set_gc_object(&mut self, object: GCObjectRef) {
+        debug_assert!(self.is_in_block(object),
+            "set_gc_object() on invalid block: {:p} (allocated={})",
+            self, self.allocated);
+        self.object_map.insert(object);
+    }
+
+    fn unset_gc_object(&mut self, object: GCObjectRef) {
+        debug_assert!(self.is_in_block(object),
+            "unset_gc_object() on invalid block: {:p} (allocated={})",
+            self, self.allocated);
+        self.object_map.remove(&object);
+    }
+
+    fn is_gc_object(&self, object: GCObjectRef) -> bool {
+        if self.is_in_block(object) {
+            return self.object_map.contains(&object);
+        }
+        return false;
+    }
+
+    fn get_object_map(&mut self) -> HashSet<GCObjectRef> {
+        return self.object_map.clone();
+    }
+
+    fn clear_object_map(&mut self) {
+        self.object_map.clear();
     }
 
     fn set_evacuation_candidate(&mut self, hole_count: u8) {
@@ -65,6 +112,8 @@ impl BlockInfo {
 
     fn reset(&mut self) {
         self.clear_line_counts();
+        self.clear_object_map();
+        self.allocated = false;
         self.hole_count = 0;
         self.evacuation_candidate = false;
     }
