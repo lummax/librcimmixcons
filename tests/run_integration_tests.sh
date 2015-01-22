@@ -1,6 +1,6 @@
 #!/bin/bash
 
-library=`basename -s .so target/librcimmixcons-*.so | sed 's/lib//'`
+library=`basename target/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
 
 function run_test {
     local file=$1;
@@ -11,7 +11,7 @@ function run_test {
 
 code=0;
 for path in tests/*.c; do
-    file=`basename -s .c "$path"`;
+    file=`basename "$path" | sed 's/\.c//'`;
     echo -n "Running test $file.."
     output=$(run_test $file 2>&1);
     if [ $? -ne 0 ]; then
