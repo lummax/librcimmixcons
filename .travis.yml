@@ -6,5 +6,7 @@ install:
 script:
     - cargo build --verbose
     - cargo test --verbose
+    - ./tests/run_integration_test.sh
     - cargo build --verbose --features "valgrind"
-    - valgrind cargo test --verbose --features "valgrind"
+    - cargo test --verbose --features "valgrind"
+    - ./tests/run_integration_test.sh
