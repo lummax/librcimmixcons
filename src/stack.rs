@@ -88,7 +88,7 @@ fn save_registers() -> setjmp::jmp_buf {
 }
 
 #[allow(unused_variables)]
-pub fn enumerate_roots(immix_space: &ImmixSpace) -> Vec<GCObjectRef> {
+pub fn enumerate_roots(immix_space: &mut ImmixSpace) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
     if let Some(bottom) = get_stack_bottom() {
         let top = get_stack_top();

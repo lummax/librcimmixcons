@@ -248,9 +248,7 @@ impl BlockAllocator {
     }
 
     fn get_block(&mut self) -> Option<*mut BlockInfo> {
-        return self.free_blocks.pop()
-                               .map(|b| { unsafe{ (*b).reset() }; b } )
-                               .or_else(|| self.build_next_block());
+        return self.free_blocks.pop().or_else(|| self.build_next_block());
     }
 
     fn return_block(&mut self, block: *mut BlockInfo) {
@@ -277,7 +275,6 @@ type BlockTuple = (*mut BlockInfo, u16, u16);
 
 pub struct ImmixSpace {
     block_allocator: BlockAllocator,
-    object_map: HashSet<GCObjectRef>,
     object_map_backup: HashSet<GCObjectRef>,
     mark_histogram: VecMap<u8>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
@@ -293,7 +290,6 @@ impl ImmixSpace {
     pub fn new() -> ImmixSpace {
         return ImmixSpace {
             block_allocator: BlockAllocator::new(),
-            object_map: HashSet::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
             unavailable_blocks: RingBuf::new(),
@@ -307,15 +303,20 @@ impl ImmixSpace {
     }
 
     pub fn set_gc_object(&mut self, object: GCObjectRef) {
-        self.object_map.insert(object);
+        debug_assert!(self.is_in_space(object), "set_gc_object() on invalid space");
+        unsafe{ (*self.get_block_ptr(object)).set_gc_object(object); }
     }
 
     pub fn unset_gc_object(&mut self, object: GCObjectRef) {
-        self.object_map.remove(&object);
+        debug_assert!(self.is_in_space(object), "unset_gc_object() on invalid space");
+        unsafe{ (*self.get_block_ptr(object)).unset_gc_object(object); }
     }
 
-    pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
-        return self.object_map.contains(&object);
+    pub fn is_gc_object(&mut self, object: GCObjectRef) -> bool {
+        if self.is_in_space(object) {
+            return unsafe{ (*self.get_block_ptr(object)).is_gc_object(object) };
+        }
+        return false;
     }
 
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
@@ -407,20 +408,29 @@ impl ImmixSpace {
     }
 
     pub fn prepare_immix_collection(&mut self) {
-        for block in self.unavailable_blocks.iter_mut() {
-            unsafe{ (**block).clear_line_counts(); }
+        if cfg!(feature = "valgrind") {
+            for block in self.unavailable_blocks.iter_mut() {
+                let block_object_map = unsafe{ (**block).get_object_map() };
+                self.object_map_backup.extend(block_object_map.into_iter());
+            }
         }
 
-        if cfg!(feature = "valgrind") {
-            self.object_map_backup = self.object_map.clone();
+        for block in self.unavailable_blocks.iter_mut() {
+            unsafe{ (**block).clear_line_counts(); }
+            unsafe{ (**block).clear_object_map(); }
         }
-        self.object_map.clear();
     }
 
     pub fn complete_immix_collection(&mut self) {
         self.current_live_mark = !self.current_live_mark;
+
         if cfg!(feature = "valgrind") {
-            for &object in self.object_map_backup.difference(&self.object_map) {
+            let mut object_map = HashSet::new();
+            for block in self.unavailable_blocks.iter_mut() {
+                let block_object_map = unsafe{ (**block).get_object_map() };
+                object_map.extend(block_object_map.into_iter());
+            }
+            for &object in self.object_map_backup.difference(&object_map) {
                 valgrind_freelike!(object);
             }
             self.object_map_backup.clear();
@@ -507,18 +517,19 @@ impl ImmixSpace {
         } else {
             debug!("Request new block");
             self.block_allocator.get_block()
-        }.map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+        }.map(|b| unsafe{ (*b).set_allocated(); b })
+         .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }
 
     fn sweep_unavailable_blocks(&mut self) {
         let mut unavailable_blocks = RingBuf::new();
         for block in self.unavailable_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
+                unsafe{ (*block).reset() ;}
                 // XXX We should not use a constant here, but something that
                 // XXX changes dynamically (see rcimmix: MAX heuristic).
                 if self.evac_headroom.len() < EVAC_HEADROOM {
                     debug!("Buffer free block {:p} for evacuation", block);
-                    unsafe{ (*block).reset() ;}
                     self.evac_headroom.push_back(block);
                 } else {
                     debug!("Return block {:p} to global block allocator", block);
