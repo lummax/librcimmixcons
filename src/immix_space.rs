@@ -74,11 +74,9 @@ impl BlockInfo {
     }
 
     fn offset(&mut self, offset: usize) -> GCObjectRef {
-        unsafe {
-            let self_ptr = self as *mut BlockInfo;
-            let object = (self_ptr as *mut u8).offset(offset as isize);
-            return object as GCObjectRef;
-        }
+        let self_ptr = self as *mut BlockInfo;
+        let object = unsafe { (self_ptr as *mut u8).offset(offset as isize) };
+        return object as GCObjectRef;
     }
 
     fn scan_block(&self, last_high_offset: u16) -> Option<(u16, u16)> {
