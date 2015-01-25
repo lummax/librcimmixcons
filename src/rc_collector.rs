@@ -24,10 +24,12 @@ impl RCCollector {
     pub fn collect(&mut self, immix_space: &mut ImmixSpace,
                    roots: &[GCObjectRef]) {
         debug!("Start RC collection");
+        immix_space.prepare_rc_collection();
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
         self.process_mod_buffer(immix_space);
         self.process_decrement_buffer(immix_space);
+        immix_space.complete_rc_collection();
         debug!("Complete collection");
     }
 
@@ -91,6 +93,7 @@ impl RCCollector {
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {:p} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
+            immix_space.set_gc_object(object);
             let children = unsafe{ (*object).children() };
             for (num, child) in children.into_iter().enumerate() {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {

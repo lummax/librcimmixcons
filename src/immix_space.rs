@@ -13,6 +13,7 @@ use gc_object::{GCRTTI, GCObject, GCObjectRef};
 struct BlockInfo {
     line_counter: VecMap<u8>,
     object_map: HashSet<GCObjectRef>,
+    new_objects: HashSet<GCObjectRef>,
     allocated: bool,
     hole_count: u8,
     evacuation_candidate: bool,
@@ -27,6 +28,7 @@ impl BlockInfo {
         return BlockInfo {
             line_counter: line_counter,
             object_map: HashSet::new(),
+            new_objects: HashSet::new(),
             allocated: false,
             hole_count: 0,
             evacuation_candidate: false,
@@ -78,6 +80,24 @@ impl BlockInfo {
 
     fn clear_object_map(&mut self) {
         self.object_map.clear();
+    }
+
+    fn set_new_object(&mut self, object: GCObjectRef) {
+        debug_assert!(self.is_in_block(object),
+            "set_new_object() on invalid block: {:p} (allocated={})",
+            self, self.allocated);
+        self.new_objects.insert(object);
+    }
+
+    fn get_new_objects(&mut self) -> HashSet<GCObjectRef> {
+        return self.new_objects.clone();
+    }
+
+    fn remove_new_objects_from_map(&mut self) {
+        let new_objects = self.new_objects.drain().collect();
+        let difference = self.object_map.difference(&new_objects)
+                                        .map(|o| *o).collect();
+        self.object_map = difference;
     }
 
     fn set_evacuation_candidate(&mut self, hole_count: u8) {
@@ -411,6 +431,33 @@ impl ImmixSpace {
         self.sweep_unavailable_blocks();
     }
 
+    pub fn prepare_rc_collection(&mut self) {
+        if cfg!(feature = "valgrind") {
+            for block in self.unavailable_blocks.iter_mut() {
+                let block_new_objects = unsafe{ (**block).get_new_objects() };
+                self.object_map_backup.extend(block_new_objects.into_iter());
+            }
+        }
+
+        for block in self.unavailable_blocks.iter_mut() {
+            unsafe{ (**block).remove_new_objects_from_map(); }
+        }
+    }
+
+    pub fn complete_rc_collection(&mut self) {
+        if cfg!(feature = "valgrind") {
+            let mut object_map = HashSet::new();
+            for block in self.unavailable_blocks.iter_mut() {
+                let block_object_map = unsafe{ (**block).get_object_map() };
+                object_map.extend(block_object_map.into_iter());
+            }
+            for &object in self.object_map_backup.difference(&object_map) {
+                valgrind_freelike!(object);
+            }
+            self.object_map_backup.clear();
+        }
+    }
+
     pub fn prepare_immix_collection(&mut self) {
         if cfg!(feature = "valgrind") {
             for block in self.unavailable_blocks.iter_mut() {
@@ -450,6 +497,11 @@ impl ImmixSpace {
         return block;
     }
 
+    fn set_new_object(&mut self, object: GCObjectRef) {
+        debug_assert!(self.is_in_space(object), "set_new_object() on invalid space");
+        unsafe{ (*self.get_block_ptr(object)).set_new_object(object); }
+    }
+
     fn raw_allocate(&mut self, size: usize) -> Option<GCObjectRef> {
         return if size < LINE_SIZE {
             self.current_block.take()
@@ -466,6 +518,7 @@ impl ImmixSpace {
              } else { self.overflow_block = Some(tp); }
              valgrind_malloclike!(object, size);
              self.set_gc_object(object);
+             self.set_new_object(object);
              object
          });
     }
@@ -529,7 +582,14 @@ impl ImmixSpace {
         let mut unavailable_blocks = RingBuf::new();
         for block in self.unavailable_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
+                if cfg!(feature = "valgrind") {
+                    let block_object_map = unsafe{ (*block).get_object_map() };
+                    for &object in block_object_map.iter() {
+                        valgrind_freelike!(object);
+                    }
+                }
                 unsafe{ (*block).reset() ;}
+
                 // XXX We should not use a constant here, but something that
                 // XXX changes dynamically (see rcimmix: MAX heuristic).
                 if self.evac_headroom.len() < EVAC_HEADROOM {
