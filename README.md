@@ -47,7 +47,7 @@ installed. To build a development version use:
 cargo build
 ```
 
-To build without the debugging output and a little optimization (-O1) please
+To build without the debugging output and with some optimization please
 use:
 
 ```
@@ -68,7 +68,7 @@ Valgrind
 The tool `Memcheck` from `Valgrind` is supported using the macros
 VALGRIND_MALLOCLIKE_BLOCK und VALGRIND_FREELIKE_BLOCK internally. Please build
 using the feature `valgrind`. This is not enabled by default as it introduces
-some overhead do determine freed objects after collection due to how Immix
+some overhead to determine freed objects after collection due to how Immix
 works.
 
 ```
