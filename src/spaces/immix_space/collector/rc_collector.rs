@@ -10,6 +10,7 @@ pub struct RCCollector {
     old_root_buffer: RingBuf<GCObjectRef>,
     decrement_buffer: RingBuf<GCObjectRef>,
     modified_buffer: RingBuf<GCObjectRef>,
+    perform_evac: bool,
 }
 
 impl RCCollector {
@@ -18,12 +19,14 @@ impl RCCollector {
             old_root_buffer: RingBuf::new(),
             decrement_buffer: RingBuf::new(),
             modified_buffer: RingBuf::new(),
+            perform_evac: false,
         };
     }
 
-    pub fn collect(&mut self, immix_space: &mut ImmixSpace,
+    pub fn collect(&mut self, immix_space: &mut ImmixSpace, perform_evac: bool,
                    roots: &[GCObjectRef]) {
         debug!("Start RC collection");
+        self.perform_evac = perform_evac;
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
         self.process_mod_buffer(immix_space);
@@ -56,7 +59,7 @@ impl RCCollector {
                  object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
         debug!("Increment object {:p}", object);
         if unsafe{ (*object).increment() } {
-            if try_evacuate {
+            if try_evacuate && self.perform_evac {
                 if let Some(new_object) = immix_space.maybe_evacuate(object) {
                     debug!("Evacuated object {:p} to {:p}", object, new_object);
                     ImmixSpace::decrement_lines(object);

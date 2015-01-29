@@ -21,7 +21,6 @@ pub struct ImmixSpace {
     allocator: allocator::Allocator,
     collector: collector::Collector,
     current_live_mark: bool,
-    perform_evac: bool,
 }
 
 impl ImmixSpace {
@@ -30,7 +29,6 @@ impl ImmixSpace {
             allocator: allocator::Allocator::new(),
             collector: collector::Collector::new(),
             current_live_mark: false,
-            perform_evac: false,
         };
     }
 
@@ -68,7 +66,7 @@ impl ImmixSpace {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        if let Some(object) = self.allocator.allocate(size, self.perform_evac) {
+        if let Some(object) = self.allocator.allocate(size, false) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
             ImmixSpace::set_gc_object(object);
@@ -85,7 +83,7 @@ impl ImmixSpace {
             return None;
         }
         let size = unsafe{ (*object).object_size() };
-        if let Some(new_object) = self.allocator.allocate(size, self.perform_evac) {
+        if let Some(new_object) = self.allocator.allocate(size, true) {
             unsafe{
                 ptr::copy_nonoverlapping_memory(new_object as *mut u8,
                                                 object as *const u8, size);
@@ -113,22 +111,20 @@ impl ImmixSpace {
         let (perform_cc, perform_evac)
             = self.collector.prepare_collection(evacuation, cycle_collect,
                 all_blocks, self.allocator.block_allocator(), evac_headroom);
-        self.perform_evac = perform_evac;
 
         self.collector.prepare_rc_collection();
-        rc_collector.collect(self, roots.as_slice());
+        rc_collector.collect(self, perform_evac, roots.as_slice());
         self.collector.complete_rc_collection();
 
         if perform_cc {
             self.collector.prepare_immix_collection();
-            ImmixCollector::collect(self, roots.as_slice());
+            ImmixCollector::collect(self, perform_evac, roots.as_slice());
             self.collector.complete_immix_collection();
             self.current_live_mark = !self.current_live_mark;
         }
         let (unavailable_blocks, recyclable_blocks, evac_headroom) =
             self.collector.complete_collection(self.allocator.block_allocator());
 
-        self.perform_evac = false;
         self.allocator.set_unavailable_blocks(unavailable_blocks);
         self.allocator.set_recyclable_blocks(recyclable_blocks);
         self.allocator.extend_evac_headroom(evac_headroom);

@@ -9,7 +9,8 @@ use spaces::ImmixSpace;
 pub struct ImmixCollector;
 
 impl ImmixCollector {
-    pub fn collect(immix_space: &mut ImmixSpace, roots: &[GCObjectRef]) {
+    pub fn collect(immix_space: &mut ImmixSpace, perform_evac: bool,
+                   roots: &[GCObjectRef]) {
         let next_live_mark = !immix_space.current_live_mark();
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
@@ -30,10 +31,12 @@ impl ImmixCollector {
                         debug!("Child {:p} is forwarded to {:p}", child, new_child);
                         unsafe{ (*object).set_child(num, new_child); }
                     } else if !unsafe{ (*child).is_marked(next_live_mark) } {
-                        if let Some(new_child) = immix_space.maybe_evacuate(child) {
-                            debug!("Evacuated child {:p} to {:p}", child, new_child);
-                            unsafe{ (*object).set_child(num, new_child); }
-                            child = new_child;
+                        if perform_evac {
+                            if let Some(new_child) = immix_space.maybe_evacuate(child) {
+                                debug!("Evacuated child {:p} to {:p}", child, new_child);
+                                unsafe{ (*object).set_child(num, new_child); }
+                                child = new_child;
+                            }
                         }
                         debug!("Push child {:p} into object queue", child);
                         object_queue.push_back(child);
