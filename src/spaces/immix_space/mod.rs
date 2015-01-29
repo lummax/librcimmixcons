@@ -3,11 +3,10 @@
 
 mod block_info;
 mod block_allocator;
-mod rc_collector;
-mod immix_collector;
+mod collector;
 
-pub use self::immix_collector::ImmixCollector;
-pub use self::rc_collector::RCCollector;
+pub use self::collector::ImmixCollector;
+pub use self::collector::RCCollector;
 
 use self::block_info::BlockInfo;
 use self::block_allocator::BlockAllocator;
