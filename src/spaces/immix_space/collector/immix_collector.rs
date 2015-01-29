@@ -22,8 +22,8 @@ impl ImmixCollector {
         while let Some(object) =  object_queue.pop_front() {
             debug!("Process object {:p} in Immix closure", object);
             if !unsafe { (*object).set_marked(next_live_mark) } {
-                immix_space.set_gc_object(object);
-                immix_space.increment_lines(object);
+                ImmixSpace::set_gc_object(object);
+                ImmixSpace::increment_lines(object);
                 debug!("Object {:p} was unmarked: process children", object);
                 let children = unsafe{ (*object).children() };
                 for (num, mut child) in children.into_iter().enumerate() {

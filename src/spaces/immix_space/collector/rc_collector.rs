@@ -28,7 +28,7 @@ impl RCCollector {
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
         self.process_mod_buffer(immix_space);
-        self.process_decrement_buffer(immix_space);
+        self.process_decrement_buffer();
         immix_space.complete_rc_collection();
         debug!("Complete collection");
     }
@@ -61,13 +61,13 @@ impl RCCollector {
             if try_evacuate {
                 if let Some(new_object) = immix_space.maybe_evacuate(object) {
                     debug!("Evacuated object {:p} to {:p}", object, new_object);
-                    immix_space.decrement_lines(object);
-                    immix_space.increment_lines(new_object);
+                    ImmixSpace::decrement_lines(object);
+                    ImmixSpace::increment_lines(new_object);
                     self.modified(new_object);
                     return Some(new_object);
                 }
             }
-            immix_space.increment_lines(object);
+            ImmixSpace::increment_lines(object);
             self.modified(object);
         }
         return None;
@@ -93,7 +93,7 @@ impl RCCollector {
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {:p} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
-            immix_space.set_gc_object(object);
+            ImmixSpace::set_gc_object(object);
             let children = unsafe{ (*object).children() };
             for (num, child) in children.into_iter().enumerate() {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
@@ -110,13 +110,13 @@ impl RCCollector {
         }
     }
 
-    fn process_decrement_buffer(&mut self, immix_space: &mut ImmixSpace) {
+    fn process_decrement_buffer(&mut self) {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
         while let Some(object) =  self.decrement_buffer.pop_front() {
             debug!("Process object {:p} in dec buffer", object);
             if unsafe{ (*object).decrement() } {
-                immix_space.unset_gc_object(object);
-                immix_space.decrement_lines(object);
+                ImmixSpace::unset_gc_object(object);
+                ImmixSpace::decrement_lines(object);
                 for child in unsafe{ (*object).children() }.into_iter() {
                     self.decrement(child);
                 }

@@ -34,19 +34,25 @@ impl ImmixSpace {
         };
     }
 
-    pub fn set_gc_object(&mut self, object: GCObjectRef) {
-        debug_assert!(self.is_in_space(object), "set_gc_object() on invalid space");
-        unsafe{ (*self.get_block_ptr(object)).set_gc_object(object); }
+    pub fn decrement_lines(object: GCObjectRef) {
+        unsafe{ (*ImmixSpace::get_block_ptr(object)).decrement_lines(object); }
     }
 
-    pub fn unset_gc_object(&mut self, object: GCObjectRef) {
-        debug_assert!(self.is_in_space(object), "unset_gc_object() on invalid space");
-        unsafe{ (*self.get_block_ptr(object)).unset_gc_object(object); }
+    pub fn increment_lines(object: GCObjectRef) {
+        unsafe{ (*ImmixSpace::get_block_ptr(object)).increment_lines(object); }
     }
 
-    pub fn is_gc_object(&mut self, object: GCObjectRef) -> bool {
+    pub fn set_gc_object(object: GCObjectRef) {
+        unsafe{ (*ImmixSpace::get_block_ptr(object)).set_gc_object(object); }
+    }
+
+    pub fn unset_gc_object(object: GCObjectRef) {
+        unsafe{ (*ImmixSpace::get_block_ptr(object)).unset_gc_object(object); }
+    }
+
+    pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         if self.is_in_space(object) {
-            return unsafe{ (*self.get_block_ptr(object)).is_gc_object(object) };
+            return unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) };
         }
         return false;
     }
@@ -59,28 +65,20 @@ impl ImmixSpace {
         return self.current_live_mark;
     }
 
-    pub fn decrement_lines(&mut self, object: GCObjectRef) {
-        unsafe{ (*self.get_block_ptr(object)).decrement_lines(object); }
-    }
-
-    pub fn increment_lines(&mut self, object: GCObjectRef) {
-        unsafe{ (*self.get_block_ptr(object)).increment_lines(object); }
-    }
-
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
         if let Some(object) = self.allocator.allocate(size, self.perform_evac) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
-            self.set_gc_object(object);
-            self.set_new_object(object);
+            unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
+            ImmixSpace::set_gc_object(object);
             return Some(object);
         }
         return None;
     }
 
     pub fn maybe_evacuate(&mut self, object: GCObjectRef) -> Option<GCObjectRef> {
-        let block_info = unsafe{ self.get_block_ptr(object) };
+        let block_info = unsafe{ ImmixSpace::get_block_ptr(object) };
         let is_pinned = unsafe{ (*object).is_pinned() };
         let is_candidate = unsafe{ (*block_info).is_evacuation_candidate() };
         if is_pinned || !is_candidate {
@@ -94,7 +92,7 @@ impl ImmixSpace {
                 debug_assert!(*object == *new_object,
                               "Evacuated object was not copied correcty");
                 (*object).set_forwarded(new_object);
-                self.unset_gc_object(object);
+                ImmixSpace::unset_gc_object(object);
             }
             debug!("Evacuated object {:p} from block {:p} to {:p}", object,
                    block_info, new_object);
@@ -151,15 +149,10 @@ impl ImmixSpace {
 }
 
 impl ImmixSpace {
-    unsafe fn get_block_ptr(&mut self, object: GCObjectRef) -> *mut BlockInfo {
+    unsafe fn get_block_ptr(object: GCObjectRef) -> *mut BlockInfo {
         let block_offset = object as usize % BLOCK_SIZE;
         let block = mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
         debug!("Block for object {:p}: {:p} with offset: {}", object, block, block_offset);
         return block;
-    }
-
-    fn set_new_object(&mut self, object: GCObjectRef) {
-        debug_assert!(self.is_in_space(object), "set_new_object() on invalid space");
-        unsafe{ (*self.get_block_ptr(object)).set_new_object(object); }
     }
 }
