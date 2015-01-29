@@ -8,55 +8,37 @@ extern crate libc;
 use std::{mem, ptr};
 
 pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
-use immix_collector::ImmixCollector;
 
 mod macros;
 mod constants;
 mod gc_object;
+mod coordinator;
 mod immix_space;
 mod rc_collector;
 mod immix_collector;
 mod stack;
 
 pub struct RCImmixCons {
-    immix_space: immix_space::ImmixSpace,
-    rc_collector: rc_collector::RCCollector,
+    coordinator: coordinator::Coordinator,
 }
 
 impl RCImmixCons {
     pub fn new() -> RCImmixCons {
         return RCImmixCons {
-            immix_space: immix_space::ImmixSpace::new(),
-            rc_collector: rc_collector::RCCollector::new(),
+            coordinator: coordinator::Coordinator::new(),
         };
     }
 
-    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef>{
-        // XXX use LOS if size > BLOCK_SIZE - LINE_SIZE
-        assert!(unsafe{ (*rtti).object_size() }
-                <= constants::BLOCK_SIZE - constants::LINE_SIZE);
-        return self.immix_space.allocate(rtti)
-                                  .or_else(|| { self.collect(true, true);
-                                                self.allocate(rtti) });
+    pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
+        return self.coordinator.allocate(rtti);
     }
 
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
-        debug!("Requested collection (evacuation={}, cycle_collect={})",
-               evacuation, cycle_collect);
-        let perform_cc = self.immix_space.prepare_collection(evacuation, cycle_collect);
-        let roots = stack::enumerate_roots(&mut self.immix_space);
-        self.rc_collector.collect(&mut self.immix_space, roots.as_slice());
-        if perform_cc {
-            ImmixCollector::collect(&mut self.immix_space, roots.as_slice());
-        }
-        self.immix_space.complete_collection();
-        valgrind_assert_no_leaks!();
+        return self.coordinator.collect(evacuation, cycle_collect);
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        if self.immix_space.is_gc_object(object) {
-            self.rc_collector.write_barrier(object);
-        }
+        return self.coordinator.write_barrier(object);
     }
 }
 
