@@ -4,7 +4,7 @@
 use std::collections::RingBuf;
 
 use gc_object::GCObjectRef;
-use immix_space::ImmixSpace;
+use spaces::ImmixSpace;
 
 pub struct RCCollector {
     old_root_buffer: RingBuf<GCObjectRef>,

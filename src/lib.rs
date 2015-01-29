@@ -12,33 +12,30 @@ pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
 mod macros;
 mod constants;
 mod gc_object;
-mod coordinator;
-mod immix_space;
-mod rc_collector;
-mod immix_collector;
+mod spaces;
 mod stack;
 
 pub struct RCImmixCons {
-    coordinator: coordinator::Coordinator,
+    spaces: spaces::Spaces,
 }
 
 impl RCImmixCons {
     pub fn new() -> RCImmixCons {
         return RCImmixCons {
-            coordinator: coordinator::Coordinator::new(),
+            spaces: spaces::Spaces::new(),
         };
     }
 
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
-        return self.coordinator.allocate(rtti);
+        return self.spaces.allocate(rtti);
     }
 
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
-        return self.coordinator.collect(evacuation, cycle_collect);
+        return self.spaces.collect(evacuation, cycle_collect);
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        return self.coordinator.write_barrier(object);
+        return self.spaces.write_barrier(object);
     }
 }
 

@@ -1,6 +1,12 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
+mod immix_collector;
+mod rc_collector;
+
+pub use self::immix_collector::ImmixCollector;
+pub use self::rc_collector::RCCollector;
+
 use std::collections::{RingBuf, HashSet, VecMap};
 use std::num::Int;
 use std::{mem, ptr, os};

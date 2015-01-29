@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::{ptr, mem};
 
 use gc_object::GCObjectRef;
-use immix_space::ImmixSpace;
+use spaces::ImmixSpace;
 
 mod setjmp {
     extern crate libc;

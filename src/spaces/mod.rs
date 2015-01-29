@@ -1,21 +1,24 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
+mod immix_space;
+
+pub use self::immix_space::ImmixSpace;
+pub use self::immix_space::RCCollector;
+pub use self::immix_space::ImmixCollector;
+
 use constants::{BLOCK_SIZE, LINE_SIZE};
 use gc_object::{GCRTTI, GCObjectRef};
-use immix_collector::ImmixCollector;
-use immix_space::ImmixSpace;
-use rc_collector::RCCollector;
 use stack;
 
-pub struct Coordinator {
+pub struct Spaces {
     immix_space: ImmixSpace,
     rc_collector: RCCollector,
 }
 
-impl Coordinator {
-    pub fn new() -> Coordinator {
-        return Coordinator {
+impl Spaces {
+    pub fn new() -> Spaces {
+        return Spaces {
             immix_space: ImmixSpace::new(),
             rc_collector: RCCollector::new(),
         };
