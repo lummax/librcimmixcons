@@ -9,7 +9,6 @@ pub use self::immix_space::ImmixCollector;
 
 use constants::{BLOCK_SIZE, LINE_SIZE};
 use gc_object::{GCRTTI, GCObjectRef};
-use stack;
 
 pub struct Spaces {
     immix_space: ImmixSpace,
@@ -35,13 +34,7 @@ impl Spaces {
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
         debug!("Requested collection (evacuation={}, cycle_collect={})",
                evacuation, cycle_collect);
-        let roots = stack::enumerate_roots(&mut self.immix_space);
-        let perform_cc = self.immix_space.prepare_collection(evacuation, cycle_collect);
-        self.rc_collector.collect(&mut self.immix_space, roots.as_slice());
-        if perform_cc {
-            ImmixCollector::collect(&mut self.immix_space, roots.as_slice());
-        }
-        self.immix_space.complete_collection();
+        self.immix_space.collect(evacuation, cycle_collect, &mut self.rc_collector);
         valgrind_assert_no_leaks!();
     }
 
