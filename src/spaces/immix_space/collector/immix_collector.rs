@@ -10,8 +10,7 @@ pub struct ImmixCollector;
 
 impl ImmixCollector {
     pub fn collect(immix_space: &mut ImmixSpace, perform_evac: bool,
-                   roots: &[GCObjectRef]) {
-        let next_live_mark = !immix_space.current_live_mark();
+                   next_live_mark: bool, roots: &[GCObjectRef]) {
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
         let mut object_queue = RingBuf::new();

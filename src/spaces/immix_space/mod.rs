@@ -59,10 +59,6 @@ impl ImmixSpace {
         return self.allocator.is_in_space(object);
     }
 
-    pub fn current_live_mark(&self) -> bool {
-        return self.current_live_mark;
-    }
-
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
@@ -117,10 +113,11 @@ impl ImmixSpace {
         self.collector.complete_rc_collection();
 
         if perform_cc {
+            let next_live_mark = !self.current_live_mark;
             self.collector.prepare_immix_collection();
-            ImmixCollector::collect(self, perform_evac, roots.as_slice());
+            ImmixCollector::collect(self, perform_evac, next_live_mark, roots.as_slice());
             self.collector.complete_immix_collection();
-            self.current_live_mark = !self.current_live_mark;
+            self.current_live_mark = next_live_mark;
         }
         let (unavailable_blocks, recyclable_blocks, evac_headroom) =
             self.collector.complete_collection(self.allocator.block_allocator());
