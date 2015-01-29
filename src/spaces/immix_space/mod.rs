@@ -3,32 +3,26 @@
 
 mod block_info;
 mod block_allocator;
+mod allocator;
 mod collector;
 
 pub use self::collector::ImmixCollector;
 pub use self::collector::RCCollector;
 
 use self::block_info::BlockInfo;
-use self::block_allocator::BlockAllocator;
 
 use std::collections::{RingBuf, HashSet, VecMap};
 use std::{mem, ptr};
 
-use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
+use constants::{BLOCK_SIZE, NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
-type BlockTuple = (*mut BlockInfo, u16, u16);
-
 pub struct ImmixSpace {
-    block_allocator: BlockAllocator,
+    allocator: allocator::Allocator,
+    all_blocks: RingBuf<*mut BlockInfo>,
     object_map_backup: HashSet<GCObjectRef>,
     mark_histogram: VecMap<u8>,
-    unavailable_blocks: RingBuf<*mut BlockInfo>,
-    recyclable_blocks: RingBuf<*mut BlockInfo>,
-    evac_headroom: RingBuf<*mut BlockInfo>,
-    current_block: Option<BlockTuple>,
-    overflow_block: Option<BlockTuple>,
     current_live_mark: bool,
     perform_evac: bool,
 }
@@ -36,14 +30,10 @@ pub struct ImmixSpace {
 impl ImmixSpace {
     pub fn new() -> ImmixSpace {
         return ImmixSpace {
-            block_allocator: BlockAllocator::new(),
+            allocator: allocator::Allocator::new(),
+            all_blocks: RingBuf::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
-            unavailable_blocks: RingBuf::new(),
-            recyclable_blocks: RingBuf::new(),
-            evac_headroom: RingBuf::new(),
-            current_block: None,
-            overflow_block: None,
             current_live_mark: false,
             perform_evac: false,
         };
@@ -67,7 +57,7 @@ impl ImmixSpace {
     }
 
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.block_allocator.is_in_space(object);
+        return self.allocator.is_in_space(object);
     }
 
     pub fn current_live_mark(&self) -> bool {
@@ -85,8 +75,10 @@ impl ImmixSpace {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        if let Some(object) = self.raw_allocate(size) {
+        if let Some(object) = self.allocator.allocate(size, self.perform_evac) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
+            self.set_gc_object(object);
+            self.set_new_object(object);
             return Some(object);
         }
         return None;
@@ -100,7 +92,7 @@ impl ImmixSpace {
             return None;
         }
         let size = unsafe{ (*object).object_size() };
-        if let Some(new_object) = self.raw_allocate(size) {
+        if let Some(new_object) = self.allocator.allocate(size, self.perform_evac) {
             unsafe{
                 ptr::copy_nonoverlapping_memory(new_object as *mut u8,
                                                 object as *const u8, size);
@@ -119,23 +111,21 @@ impl ImmixSpace {
     }
 
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool) -> bool {
-        self.unavailable_blocks.extend(self.recyclable_blocks.drain());
-        self.unavailable_blocks.extend(self.current_block.take()
-                                           .map(|b| b.0).into_iter());
+        self.all_blocks = self.allocator.get_all_blocks();
 
-        let available_blocks = self.block_allocator.available_blocks();
-        let total_blocks = self.block_allocator.total_blocks();
+        let available_blocks = self.allocator.block_allocator().available_blocks();
+        let total_blocks = self.allocator.block_allocator().total_blocks();
 
         let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
-        let available_evac_blocks = available_blocks + self.evac_headroom.len();
+        let available_evac_blocks = available_blocks + self.allocator.evac_headroom();
         if evacuation || available_evac_blocks < evac_threshhold {
             let hole_threshhold = self.establish_hole_threshhold();
             self.perform_evac = hole_threshhold > 0
                 && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
             if self.perform_evac {
                 debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
-                       hole_threshhold, self.evac_headroom.len());
-                for block in self.unavailable_blocks.iter_mut() {
+                       hole_threshhold, self.allocator.evac_headroom());
+                for block in self.all_blocks.iter_mut() {
                     unsafe{ (**block).set_evacuation_candidate(hole_threshhold); }
                 }
             }
@@ -143,7 +133,7 @@ impl ImmixSpace {
 
         if !cycle_collect {
             let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
-            return self.block_allocator.available_blocks() < cycle_theshold;
+            return self.allocator.block_allocator().available_blocks() < cycle_theshold;
         }
         return true;
     }
@@ -151,18 +141,18 @@ impl ImmixSpace {
     pub fn complete_collection(&mut self) {
         self.mark_histogram.clear();
         self.perform_evac = false;
-        self.sweep_unavailable_blocks();
+        self.sweep_all_blocks();
     }
 
     pub fn prepare_rc_collection(&mut self) {
         if cfg!(feature = "valgrind") {
-            for block in self.unavailable_blocks.iter_mut() {
+            for block in self.all_blocks.iter_mut() {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
                 self.object_map_backup.extend(block_new_objects.into_iter());
             }
         }
 
-        for block in self.unavailable_blocks.iter_mut() {
+        for block in self.all_blocks.iter_mut() {
             unsafe{ (**block).remove_new_objects_from_map(); }
         }
     }
@@ -170,7 +160,7 @@ impl ImmixSpace {
     pub fn complete_rc_collection(&mut self) {
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
-            for block in self.unavailable_blocks.iter_mut() {
+            for block in self.all_blocks.iter_mut() {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 object_map.extend(block_object_map.into_iter());
             }
@@ -183,13 +173,13 @@ impl ImmixSpace {
 
     pub fn prepare_immix_collection(&mut self) {
         if cfg!(feature = "valgrind") {
-            for block in self.unavailable_blocks.iter_mut() {
+            for block in self.all_blocks.iter_mut() {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 self.object_map_backup.extend(block_object_map.into_iter());
             }
         }
 
-        for block in self.unavailable_blocks.iter_mut() {
+        for block in self.all_blocks.iter_mut() {
             unsafe{ (**block).clear_line_counts(); }
             unsafe{ (**block).clear_object_map(); }
         }
@@ -200,7 +190,7 @@ impl ImmixSpace {
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
-            for block in self.unavailable_blocks.iter_mut() {
+            for block in self.all_blocks.iter_mut() {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 object_map.extend(block_object_map.into_iter());
             }
@@ -225,85 +215,11 @@ impl ImmixSpace {
         unsafe{ (*self.get_block_ptr(object)).set_new_object(object); }
     }
 
-    fn raw_allocate(&mut self, size: usize) -> Option<GCObjectRef> {
-        return if size < LINE_SIZE {
-            self.current_block.take()
-                              .and_then(|tp| self.scan_for_hole(size, tp))
-        } else {
-            self.overflow_block.take()
-                               .and_then(|tp| self.scan_for_hole(size, tp))
-                               .or_else(|| self.get_new_block())
-        }.or_else(|| self.scan_recyclables(size))
-         .or_else(|| self.get_new_block())
-         .map(|tp| self.allocate_from_block(size, tp))
-         .map(|(tp, object)| {
-             if size < LINE_SIZE { self.current_block = Some(tp);
-             } else { self.overflow_block = Some(tp); }
-             valgrind_malloclike!(object, size);
-             self.set_gc_object(object);
-             self.set_new_object(object);
-             object
-         });
-    }
-
-    fn scan_for_hole(&mut self, size: usize, block_tuple: BlockTuple)
-        -> Option<BlockTuple> {
-            let (block, low, high) = block_tuple;
-            return match (high - low) as usize >= size {
-                true => {
-                    debug!("Found hole in block {:p}", block);
-                    Some(block_tuple)
-                },
-                false => match unsafe{ (*block).scan_block(high) } {
-                    None => {
-                        debug!("Push block {:p} into unavailable_blocks", block);
-                        self.unavailable_blocks.push_back(block);
-                        None
-                    },
-                    Some((low, high)) =>
-                        self.scan_for_hole(size, (block, low, high)),
-                }
-            };
-        }
-
-    fn scan_recyclables(&mut self, size: usize) -> Option<BlockTuple> {
-        return match self.recyclable_blocks.pop_front() {
-            None => None,
-            Some(block) => match unsafe{ (*block).scan_block((LINE_SIZE - 1) as u16) } {
-                None => {
-                    debug!("Push block {:p} into unavailable_blocks", block);
-                    self.unavailable_blocks.push_back(block);
-                    self.scan_recyclables(size)
-                },
-                Some((low, high)) => self.scan_for_hole(size, (block, low, high))
-                                         .or_else(|| self.scan_recyclables(size)),
-            }
-        };
-    }
-
-    fn allocate_from_block(&mut self, size: usize, block_tuple: BlockTuple)
-        -> (BlockTuple, GCObjectRef) {
-            let (block, low, high) = block_tuple;
-            let object = unsafe { (*block).offset(low as usize) };
-            debug!("Allocated object {:p} of size {} in {:p} (object={})",
-                   object, size, block, size >= LINE_SIZE);
-            return ((block, low + size as u16, high), object);
-        }
-
-    fn get_new_block(&mut self) -> Option<BlockTuple> {
-        return if self.perform_evac {
-            debug!("Request new block in evacuation");
-            self.evac_headroom.pop_front()
-        } else {
-            debug!("Request new block");
-            self.block_allocator.get_block()
-        }.map(|b| unsafe{ (*b).set_allocated(); b })
-         .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
-    }
-
-    fn sweep_unavailable_blocks(&mut self) {
+    fn sweep_all_blocks(&mut self) {
         let mut unavailable_blocks = RingBuf::new();
-        for block in self.unavailable_blocks.drain() {
+        let mut recyclable_blocks = RingBuf::new();
+        let mut evac_headroom = RingBuf::new();
+        for block in self.all_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
                 if cfg!(feature = "valgrind") {
                     let block_object_map = unsafe{ (*block).get_object_map() };
@@ -315,12 +231,12 @@ impl ImmixSpace {
 
                 // XXX We should not use a constant here, but something that
                 // XXX changes dynamically (see rcimmix: MAX heuristic).
-                if self.evac_headroom.len() < EVAC_HEADROOM {
+                if evac_headroom.len() < EVAC_HEADROOM {
                     debug!("Buffer free block {:p} for evacuation", block);
-                    self.evac_headroom.push_back(block);
+                    evac_headroom.push_back(block);
                 } else {
                     debug!("Return block {:p} to global block allocator", block);
-                    self.block_allocator.return_block(block);
+                    self.allocator.block_allocator().return_block(block);
                 }
             } else {
                 unsafe{ (*block).count_holes(); }
@@ -339,17 +255,19 @@ impl ImmixSpace {
                     },
                     _ => {
                         debug!("Push block {:p} into recyclable_blocks", block);
-                        self.recyclable_blocks.push_back(block);
+                        recyclable_blocks.push_back(block);
                     }
                 }
             }
         }
-        self.unavailable_blocks.extend(unavailable_blocks.into_iter());
+        self.allocator.set_unavailable_blocks(unavailable_blocks);
+        self.allocator.set_recyclable_blocks(recyclable_blocks);
+        self.allocator.extend_evac_headroom(evac_headroom);
     }
 
     fn establish_hole_threshhold(&self) -> u8 {
         let mut available_histogram : VecMap<u8> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
-        for block in self.unavailable_blocks.iter() {
+        for block in self.all_blocks.iter() {
             let (holes, free_lines) = unsafe{ (**block).count_holes_and_available_lines() };
             if available_histogram.contains_key(&(holes as usize)) {
                 if let Some(val) = available_histogram.get_mut(&(holes as usize)) {
@@ -358,7 +276,8 @@ impl ImmixSpace {
             } else { available_histogram.insert(holes as usize, free_lines); }
         }
         let mut required_lines = 0 as u8;
-        let mut available_lines = (self.evac_headroom.len() * (NUM_LINES_PER_BLOCK - 1)) as u8;
+        let mut available_lines = (self.allocator.evac_headroom()
+                                   * (NUM_LINES_PER_BLOCK - 1)) as u8;
 
         for threshold in (0..NUM_LINES_PER_BLOCK) {
             required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
