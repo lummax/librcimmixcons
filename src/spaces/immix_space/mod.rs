@@ -115,10 +115,14 @@ impl ImmixSpace {
                 all_blocks, self.allocator.block_allocator(), evac_headroom);
         self.perform_evac = perform_evac;
 
+        self.collector.prepare_rc_collection();
         rc_collector.collect(self, roots.as_slice());
+        self.collector.complete_rc_collection();
 
         if perform_cc {
+            self.collector.prepare_immix_collection();
             ImmixCollector::collect(self, roots.as_slice());
+            self.collector.complete_immix_collection();
             self.current_live_mark = !self.current_live_mark;
         }
         let (unavailable_blocks, recyclable_blocks, evac_headroom) =
@@ -129,22 +133,6 @@ impl ImmixSpace {
         self.allocator.set_recyclable_blocks(recyclable_blocks);
         self.allocator.extend_evac_headroom(evac_headroom);
         valgrind_assert_no_leaks!();
-    }
-
-    pub fn prepare_rc_collection(&mut self) {
-        self.collector.prepare_rc_collection();
-    }
-
-    pub fn complete_rc_collection(&mut self) {
-        self.collector.complete_rc_collection();
-    }
-
-    pub fn prepare_immix_collection(&mut self) {
-        self.collector.prepare_immix_collection();
-    }
-
-    pub fn complete_immix_collection(&mut self) {
-        self.collector.complete_immix_collection();
     }
 }
 

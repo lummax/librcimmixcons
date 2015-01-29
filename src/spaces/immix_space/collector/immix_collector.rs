@@ -13,7 +13,6 @@ impl ImmixCollector {
         let next_live_mark = !immix_space.current_live_mark();
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
-        immix_space.prepare_immix_collection();
         let mut object_queue = RingBuf::new();
         for root in roots.iter().map(|o| *o) {
             unsafe{ (*root).set_pinned(true); }
@@ -45,7 +44,6 @@ impl ImmixCollector {
         for root in roots.iter() {
             unsafe{ (**root).set_pinned(false); }
         }
-        immix_space.complete_immix_collection();
         debug!("Complete collection");
     }
 }

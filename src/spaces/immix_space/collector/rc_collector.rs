@@ -24,12 +24,10 @@ impl RCCollector {
     pub fn collect(&mut self, immix_space: &mut ImmixSpace,
                    roots: &[GCObjectRef]) {
         debug!("Start RC collection");
-        immix_space.prepare_rc_collection();
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
         self.process_mod_buffer(immix_space);
         self.process_decrement_buffer();
-        immix_space.complete_rc_collection();
         debug!("Complete collection");
     }
 
