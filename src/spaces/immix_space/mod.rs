@@ -10,6 +10,9 @@ pub use self::collector::ImmixCollector;
 pub use self::collector::RCCollector;
 
 use self::block_info::BlockInfo;
+use self::allocator::Allocator;
+use self::allocator::NormalAllocator;
+use self::collector::Collector;
 
 use std::{mem, ptr};
 
@@ -18,16 +21,16 @@ use gc_object::{GCRTTI, GCObject, GCObjectRef};
 use stack;
 
 pub struct ImmixSpace {
-    allocator: allocator::Allocator,
-    collector: collector::Collector,
+    allocator: NormalAllocator,
+    collector: Collector,
     current_live_mark: bool,
 }
 
 impl ImmixSpace {
     pub fn new() -> ImmixSpace {
         return ImmixSpace {
-            allocator: allocator::Allocator::new(),
-            collector: collector::Collector::new(),
+            allocator: NormalAllocator::new(),
+            collector: Collector::new(),
             current_live_mark: false,
         };
     }
