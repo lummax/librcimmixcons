@@ -2,8 +2,10 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 mod normal_allocator;
+mod evac_allocator;
 
 pub use self::normal_allocator::NormalAllocator;
+pub use self::evac_allocator::EvacAllocator;
 
 use spaces::immix_space::block_info::BlockInfo;
 
@@ -16,15 +18,15 @@ pub trait Allocator {
     fn take_current_block(&mut self, size: usize) -> Option<BlockTuple>;
     fn put_current_block(&mut self, size: usize, block_tuple: BlockTuple);
 
-    fn get_new_block(&mut self, perform_evac: bool) -> Option<BlockTuple>;
+    fn get_new_block(&mut self) -> Option<BlockTuple>;
     fn handle_no_hole(&mut self, size: usize) -> Option<BlockTuple>;
     fn handle_full_block(&mut self, block: *mut BlockInfo);
 
-    fn allocate(&mut self, size: usize, perform_evac: bool) -> Option<GCObjectRef> {
+    fn allocate(&mut self, size: usize) -> Option<GCObjectRef> {
         return self.take_current_block(size)
                    .and_then(|tp| self.scan_for_hole(size, tp))
                    .or_else(|| self.handle_no_hole(size))
-                   .or_else(|| self.get_new_block(perform_evac))
+                   .or_else(|| self.get_new_block())
                    .map(|tp| self.allocate_from_block(size, tp))
                    .map(|(tp, object)| {
                        self.put_current_block(size, tp);

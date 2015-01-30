@@ -12,6 +12,7 @@ pub use self::collector::RCCollector;
 use self::block_info::BlockInfo;
 use self::allocator::Allocator;
 use self::allocator::NormalAllocator;
+use self::allocator::EvacAllocator;
 use self::collector::Collector;
 
 use std::{mem, ptr};
@@ -22,6 +23,7 @@ use stack;
 
 pub struct ImmixSpace {
     allocator: NormalAllocator,
+    evac_allocator: EvacAllocator,
     collector: Collector,
     current_live_mark: bool,
 }
@@ -30,6 +32,7 @@ impl ImmixSpace {
     pub fn new() -> ImmixSpace {
         return ImmixSpace {
             allocator: NormalAllocator::new(),
+            evac_allocator: EvacAllocator::new(),
             collector: Collector::new(),
             current_live_mark: false,
         };
@@ -65,7 +68,7 @@ impl ImmixSpace {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        if let Some(object) = self.allocator.allocate(size, false) {
+        if let Some(object) = self.allocator.allocate(size) {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
             ImmixSpace::set_gc_object(object);
@@ -82,7 +85,7 @@ impl ImmixSpace {
             return None;
         }
         let size = unsafe{ (*object).object_size() };
-        if let Some(new_object) = self.allocator.allocate(size, true) {
+        if let Some(new_object) = self.evac_allocator.allocate(size) {
             unsafe{
                 ptr::copy_nonoverlapping_memory(new_object as *mut u8,
                                                 object as *const u8, size);
@@ -104,8 +107,9 @@ impl ImmixSpace {
                    rc_collector: &mut RCCollector) {
 
         let roots = stack::enumerate_roots(self);
-        let evac_headroom = self.allocator.evac_headroom();
-        let all_blocks = self.allocator.get_all_blocks();
+        let evac_headroom = self.evac_allocator.evac_headroom();
+        let mut all_blocks = self.allocator.get_all_blocks();
+        all_blocks.extend(self.evac_allocator.get_all_blocks().into_iter());
 
         let (perform_cc, perform_evac)
             = self.collector.prepare_collection(evacuation, cycle_collect,
@@ -127,7 +131,7 @@ impl ImmixSpace {
 
         self.allocator.set_unavailable_blocks(unavailable_blocks);
         self.allocator.set_recyclable_blocks(recyclable_blocks);
-        self.allocator.extend_evac_headroom(evac_headroom);
+        self.evac_allocator.extend_evac_headroom(evac_headroom);
         valgrind_assert_no_leaks!();
     }
 }

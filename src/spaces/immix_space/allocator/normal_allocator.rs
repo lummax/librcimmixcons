@@ -15,7 +15,6 @@ pub struct NormalAllocator {
     block_allocator: BlockAllocator,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
-    evac_headroom: RingBuf<*mut BlockInfo>,
     current_block: Option<BlockTuple>,
     overflow_block: Option<BlockTuple>,
 }
@@ -26,7 +25,6 @@ impl NormalAllocator {
             block_allocator: BlockAllocator::new(),
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
-            evac_headroom: RingBuf::new(),
             current_block: None,
             overflow_block: None,
         };
@@ -42,14 +40,6 @@ impl NormalAllocator {
 
     pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.recyclable_blocks = blocks;
-    }
-
-    pub fn extend_evac_headroom(&mut self, blocks: RingBuf<*mut BlockInfo>) {
-        self.evac_headroom.extend(blocks.into_iter());
-    }
-
-    pub fn evac_headroom(&self) -> usize {
-        return self.evac_headroom.len();
     }
 
     pub fn block_allocator(&mut self) -> &mut BlockAllocator {
@@ -82,15 +72,11 @@ impl Allocator for NormalAllocator {
         }
     }
 
-    fn get_new_block(&mut self, perform_evac: bool) -> Option<BlockTuple> {
-        return if perform_evac {
-            debug!("Request new block in evacuation");
-            self.evac_headroom.pop_front()
-        } else {
-            debug!("Request new block");
-            self.block_allocator.get_block()
-        }.map(|b| unsafe{ (*b).set_allocated(); b })
-         .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+    fn get_new_block(&mut self) -> Option<BlockTuple> {
+        debug!("Request new block");
+        return self.block_allocator.get_block()
+                   .map(|b| unsafe{ (*b).set_allocated(); b })
+                   .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }
 
     fn handle_no_hole(&mut self, size: usize) -> Option<BlockTuple> {
