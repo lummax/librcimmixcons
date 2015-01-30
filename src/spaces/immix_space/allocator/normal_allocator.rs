@@ -32,17 +32,16 @@ impl NormalAllocator {
     pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.recyclable_blocks = blocks;
     }
+}
 
-    pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+impl Allocator for NormalAllocator {
+    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.recyclable_blocks.drain())
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
                    .collect();
     }
 
-}
-
-impl Allocator for NormalAllocator {
     fn take_current_block(&mut self) -> Option<BlockTuple> {
         return self.current_block.take();
     }

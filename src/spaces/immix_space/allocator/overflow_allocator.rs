@@ -26,16 +26,15 @@ impl OverflowAllocator {
             current_block: None,
         };
     }
+}
 
-    pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+impl Allocator for OverflowAllocator {
+    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
                    .collect();
     }
 
-}
-
-impl Allocator for OverflowAllocator {
     fn take_current_block(&mut self) -> Option<BlockTuple> {
         return self.current_block.take();
     }

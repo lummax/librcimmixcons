@@ -31,16 +31,15 @@ impl EvacAllocator {
     pub fn evac_headroom(&self) -> usize {
         return self.evac_headroom.len();
     }
+}
 
-    pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+impl Allocator for EvacAllocator {
+    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
                    .collect();
     }
 
-}
-
-impl Allocator for EvacAllocator {
     fn take_current_block(&mut self) -> Option<BlockTuple> {
         return self.current_block.take();
     }

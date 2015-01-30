@@ -8,8 +8,9 @@ mod evac_allocator;
 pub use self::normal_allocator::NormalAllocator;
 pub use self::overflow_allocator::OverflowAllocator;
 pub use self::evac_allocator::EvacAllocator;
-
 use spaces::immix_space::block_info::BlockInfo;
+
+use std::collections::RingBuf;
 
 use constants::LINE_SIZE;
 use gc_object::GCObjectRef;
@@ -17,6 +18,8 @@ use gc_object::GCObjectRef;
 type BlockTuple = (*mut BlockInfo, u16, u16);
 
 pub trait Allocator {
+    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo>;
+
     fn take_current_block(&mut self) -> Option<BlockTuple>;
     fn put_current_block(&mut self, block_tuple: BlockTuple);
 
