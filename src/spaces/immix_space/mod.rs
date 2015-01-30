@@ -10,19 +10,25 @@ pub use self::collector::ImmixCollector;
 pub use self::collector::RCCollector;
 
 use self::block_info::BlockInfo;
+use self::block_allocator::BlockAllocator;
 use self::allocator::Allocator;
 use self::allocator::NormalAllocator;
+use self::allocator::OverflowAllocator;
 use self::allocator::EvacAllocator;
 use self::collector::Collector;
 
 use std::{mem, ptr};
+use std::rc::Rc;
+use std::cell::RefCell;
 
-use constants::BLOCK_SIZE;
+use constants::{BLOCK_SIZE, LINE_SIZE};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 use stack;
 
 pub struct ImmixSpace {
+    block_allocator: Rc<RefCell<BlockAllocator>>,
     allocator: NormalAllocator,
+    overflow_allocator: OverflowAllocator,
     evac_allocator: EvacAllocator,
     collector: Collector,
     current_live_mark: bool,
@@ -30,10 +36,16 @@ pub struct ImmixSpace {
 
 impl ImmixSpace {
     pub fn new() -> ImmixSpace {
+        let block_allocator = Rc::new(RefCell::new(BlockAllocator::new()));
+        let normal_block_allocator = block_allocator.clone();
+        let overflow_block_allocator = block_allocator.clone();
+        let collector_block_allocator = block_allocator.clone();
         return ImmixSpace {
-            allocator: NormalAllocator::new(),
+            block_allocator: block_allocator,
+            allocator: NormalAllocator::new(normal_block_allocator),
+            overflow_allocator: OverflowAllocator::new(overflow_block_allocator),
             evac_allocator: EvacAllocator::new(),
-            collector: Collector::new(),
+            collector: Collector::new(collector_block_allocator),
             current_live_mark: false,
         };
     }
@@ -62,13 +74,14 @@ impl ImmixSpace {
     }
 
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.allocator.is_in_space(object);
+        return self.block_allocator.borrow().is_in_space(object);
     }
 
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        if let Some(object) = self.allocator.allocate(size) {
+        if let Some(object) = if size < LINE_SIZE { self.allocator.allocate(size) }
+                              else { self.overflow_allocator.allocate(size) } {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
             ImmixSpace::set_gc_object(object);
@@ -108,12 +121,12 @@ impl ImmixSpace {
 
         let roots = stack::enumerate_roots(self);
         let evac_headroom = self.evac_allocator.evac_headroom();
-        let mut all_blocks = self.allocator.get_all_blocks();
-        all_blocks.extend(self.evac_allocator.get_all_blocks().into_iter());
+        self.collector.extend_all_blocks(self.allocator.get_all_blocks());
+        self.collector.extend_all_blocks(self.overflow_allocator.get_all_blocks());
+        self.collector.extend_all_blocks(self.evac_allocator.get_all_blocks());
 
         let (perform_cc, perform_evac)
-            = self.collector.prepare_collection(evacuation, cycle_collect,
-                all_blocks, self.allocator.block_allocator(), evac_headroom);
+            = self.collector.prepare_collection(evacuation, cycle_collect, evac_headroom);
 
         self.collector.prepare_rc_collection();
         rc_collector.collect(self, perform_evac, roots.as_slice());
@@ -126,10 +139,8 @@ impl ImmixSpace {
             self.collector.complete_immix_collection();
             self.current_live_mark = next_live_mark;
         }
-        let (unavailable_blocks, recyclable_blocks, evac_headroom) =
-            self.collector.complete_collection(self.allocator.block_allocator());
+        let (recyclable_blocks, evac_headroom) = self.collector.complete_collection();
 
-        self.allocator.set_unavailable_blocks(unavailable_blocks);
         self.allocator.set_recyclable_blocks(recyclable_blocks);
         self.evac_allocator.extend_evac_headroom(evac_headroom);
         valgrind_assert_no_leaks!();

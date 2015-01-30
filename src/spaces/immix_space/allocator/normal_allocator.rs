@@ -7,43 +7,30 @@ use spaces::immix_space::allocator::BlockTuple;
 use spaces::immix_space::allocator::Allocator;
 
 use std::collections::RingBuf;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use constants::{BLOCK_SIZE, LINE_SIZE};
-use gc_object::GCObjectRef;
 
 pub struct NormalAllocator {
-    block_allocator: BlockAllocator,
+    block_allocator: Rc<RefCell<BlockAllocator>>,
     unavailable_blocks: RingBuf<*mut BlockInfo>,
     recyclable_blocks: RingBuf<*mut BlockInfo>,
     current_block: Option<BlockTuple>,
-    overflow_block: Option<BlockTuple>,
 }
 
 impl NormalAllocator {
-    pub fn new() -> NormalAllocator {
+    pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> NormalAllocator {
         return NormalAllocator {
-            block_allocator: BlockAllocator::new(),
+            block_allocator: block_allocator,
             unavailable_blocks: RingBuf::new(),
             recyclable_blocks: RingBuf::new(),
             current_block: None,
-            overflow_block: None,
         };
-    }
-
-    pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.block_allocator.is_in_space(object);
-    }
-
-    pub fn set_unavailable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
-        self.unavailable_blocks = blocks;
     }
 
     pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.recyclable_blocks = blocks;
-    }
-
-    pub fn block_allocator(&mut self) -> &mut BlockAllocator {
-        return &mut self.block_allocator;
     }
 
     pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
@@ -56,25 +43,18 @@ impl NormalAllocator {
 }
 
 impl Allocator for NormalAllocator {
-    fn take_current_block(&mut self, size: usize) -> Option<BlockTuple> {
-        if size < LINE_SIZE {
-            return self.current_block.take();
-        } else {
-            return self.overflow_block.take();
-        }
+    fn take_current_block(&mut self) -> Option<BlockTuple> {
+        return self.current_block.take();
     }
 
-    fn put_current_block(&mut self, size: usize, block_tuple: BlockTuple) {
-        if size < LINE_SIZE {
-            self.current_block = Some(block_tuple);
-        } else {
-            self.overflow_block = Some(block_tuple);
-        }
+    fn put_current_block(&mut self, block_tuple: BlockTuple) {
+        self.current_block = Some(block_tuple);
     }
 
     fn get_new_block(&mut self) -> Option<BlockTuple> {
         debug!("Request new block");
-        return self.block_allocator.get_block()
+        return self.block_allocator.borrow_mut()
+                   .get_block()
                    .map(|b| unsafe{ (*b).set_allocated(); b })
                    .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }

@@ -8,6 +8,8 @@ pub use self::immix_collector::ImmixCollector;
 pub use self::rc_collector::RCCollector;
 
 use std::collections::{RingBuf, HashSet, VecMap};
+use std::rc::Rc;
+use std::cell::RefCell;
 
 use constants::{NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
@@ -16,25 +18,29 @@ use spaces::immix_space::block_info::BlockInfo;
 use spaces::immix_space::block_allocator::BlockAllocator;
 
 pub struct Collector {
+    block_allocator: Rc<RefCell<BlockAllocator>>,
     all_blocks: RingBuf<*mut BlockInfo>,
     object_map_backup: HashSet<GCObjectRef>,
     mark_histogram: VecMap<u8>,
 }
 
 impl Collector {
-    pub fn new() -> Collector {
+    pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> Collector {
         return Collector {
+            block_allocator: block_allocator,
             all_blocks: RingBuf::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
         };
     }
 
+    pub fn extend_all_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+        self.all_blocks.extend(blocks.into_iter());
+    }
+
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool,
-                              all_blocks: RingBuf<*mut BlockInfo>,
-                              block_allocator: &mut BlockAllocator,
                               evac_headroom: usize) -> (bool, bool) {
-        self.all_blocks = all_blocks;
+        let block_allocator = self.block_allocator.borrow();
         let available_blocks = block_allocator.available_blocks();
         let total_blocks = block_allocator.total_blocks();
         let mut perform_evac = evacuation;
@@ -61,10 +67,9 @@ impl Collector {
         return (true, perform_evac);
     }
 
-    pub fn complete_collection(&mut self, block_allocator: &mut BlockAllocator)
-            -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
+    pub fn complete_collection(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
         self.mark_histogram.clear();
-        return self.sweep_all_blocks(block_allocator);
+        return self.sweep_all_blocks();
     }
 
     pub fn prepare_rc_collection(&mut self) {
@@ -124,8 +129,8 @@ impl Collector {
 }
 
 impl Collector {
-    fn sweep_all_blocks(&mut self, block_allocator: &mut BlockAllocator)
-            -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
+    fn sweep_all_blocks(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
+        let mut block_allocator = self.block_allocator.borrow_mut();
         let mut unavailable_blocks = RingBuf::new();
         let mut recyclable_blocks = RingBuf::new();
         let mut evac_headroom = RingBuf::new();
@@ -170,7 +175,8 @@ impl Collector {
                 }
             }
         }
-        return (unavailable_blocks, recyclable_blocks, evac_headroom);
+        self.all_blocks = unavailable_blocks;
+        return (recyclable_blocks, evac_headroom);
     }
 
     fn establish_hole_threshhold(&self, evac_headroom: usize) -> u8 {
