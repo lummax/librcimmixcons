@@ -1,7 +1,11 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-#![allow(unstable)]
+#![feature(libc)]
+#![feature(os)]
+#![feature(core)]
+#![feature(std_misc)]
+#![feature(collections)]
 #![feature(link_llvm_intrinsics)]
 
 extern crate libc;
