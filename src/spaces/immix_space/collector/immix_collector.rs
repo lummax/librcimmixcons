@@ -15,11 +15,8 @@ impl ImmixCollector {
                    evac_allocator: &mut EvacAllocator, next_live_mark: bool) {
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
-        let mut object_queue = RingBuf::new();
-        for root in roots.iter().map(|o| *o) {
-            unsafe{ (*root).set_pinned(true); }
-            object_queue.push_back(root);
-        }
+        let mut object_queue: RingBuf<GCObjectRef> = roots.iter().map(|o| *o).collect();
+
         while let Some(object) =  object_queue.pop_front() {
             debug!("Process object {:p} in Immix closure", object);
             if !unsafe { (*object).set_marked(next_live_mark) } {
@@ -44,9 +41,6 @@ impl ImmixCollector {
                     }
                 }
             }
-        }
-        for root in roots.iter() {
-            unsafe{ (**root).set_pinned(false); }
         }
         debug!("Complete collection");
     }

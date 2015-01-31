@@ -55,10 +55,18 @@ impl Spaces {
         debug!("Requested collection (evacuation={}, cycle_collect={})",
                evacuation, cycle_collect);
         let roots = stack::enumerate_roots(self);
+        for root in roots.iter().map(|o| *o) {
+            unsafe{ (*root).set_pinned(true); }
+        }
+
         let collection_type = self.immix_space.prepare_collection(evacuation,
                                                                   cycle_collect);
         self.immix_space.collect(&collection_type, roots.as_slice());
         self.immix_space.complete_collection(&collection_type);
+
+        for root in roots.iter() {
+            unsafe{ (**root).set_pinned(false); }
+        }
         valgrind_assert_no_leaks!();
     }
 
