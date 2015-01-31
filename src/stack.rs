@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::{ptr, mem};
 
 use gc_object::GCObjectRef;
-use spaces::ImmixSpace;
+use spaces::Spaces;
 
 mod setjmp {
     extern crate libc;
@@ -88,7 +88,7 @@ fn save_registers() -> setjmp::jmp_buf {
 }
 
 #[allow(unused_variables)]
-pub fn enumerate_roots(immix_space: &mut ImmixSpace) -> Vec<GCObjectRef> {
+pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
     if let Some(bottom) = get_stack_bottom() {
         let top = get_stack_top();
@@ -96,7 +96,7 @@ pub fn enumerate_roots(immix_space: &mut ImmixSpace) -> Vec<GCObjectRef> {
         debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
         return (0..stack_size)
             .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
-            .filter(|o| !o.is_null() && immix_space.is_gc_object(*o))
+            .filter(|o| !o.is_null() && spaces.is_gc_object(*o))
             .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();
     }

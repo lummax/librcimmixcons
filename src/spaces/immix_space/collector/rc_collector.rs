@@ -3,8 +3,10 @@
 
 use std::collections::RingBuf;
 
+use spaces::immix_space::allocator::EvacAllocator;
+use spaces::immix_space::ImmixSpace;
 use gc_object::GCObjectRef;
-use spaces::ImmixSpace;
+use spaces::CollectionType;
 
 pub struct RCCollector {
     old_root_buffer: RingBuf<GCObjectRef>,
@@ -23,13 +25,13 @@ impl RCCollector {
         };
     }
 
-    pub fn collect(&mut self, immix_space: &mut ImmixSpace, perform_evac: bool,
-                   roots: &[GCObjectRef]) {
+    pub fn collect(&mut self, collection_type: &CollectionType,
+                   roots: &[GCObjectRef], evac_allocator: &mut EvacAllocator) {
         debug!("Start RC collection");
-        self.perform_evac = perform_evac;
+        self.perform_evac = collection_type.is_evac();
         self.process_old_roots();
-        self.process_current_roots(immix_space, roots);
-        self.process_mod_buffer(immix_space);
+        self.process_current_roots(evac_allocator, roots);
+        self.process_mod_buffer(evac_allocator);
         self.process_decrement_buffer();
         debug!("Complete collection");
     }
@@ -55,12 +57,12 @@ impl RCCollector {
         self.decrement_buffer.push_back(object);
     }
 
-    fn increment(&mut self, immix_space: &mut ImmixSpace,
+    fn increment(&mut self, evac_allocator: &mut EvacAllocator,
                  object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
         debug!("Increment object {:p}", object);
         if unsafe{ (*object).increment() } {
             if try_evacuate && self.perform_evac {
-                if let Some(new_object) = immix_space.maybe_evacuate(object) {
+                if let Some(new_object) = evac_allocator.maybe_evacuate(object) {
                     debug!("Evacuated object {:p} to {:p}", object, new_object);
                     ImmixSpace::decrement_lines(object);
                     ImmixSpace::increment_lines(new_object);
@@ -79,17 +81,17 @@ impl RCCollector {
         self.decrement_buffer.extend(self.old_root_buffer.drain());
     }
 
-    fn process_current_roots(&mut self, immix_space: &mut ImmixSpace,
+    fn process_current_roots(&mut self, evac_allocator: &mut EvacAllocator,
                              roots: &[GCObjectRef]) {
         debug!("Process current roots (size {})", roots.len());
         for root in roots.iter().map(|o| *o) {
             debug!("Process root object: {:p}", root);
-            self.increment(immix_space, root, false);
+            self.increment(evac_allocator, root, false);
             self.old_root_buffer.push_back(root);
         }
     }
 
-    fn process_mod_buffer(&mut self, immix_space: &mut ImmixSpace) {
+    fn process_mod_buffer(&mut self, evac_allocator: &mut EvacAllocator) {
         debug!("Process mod buffer (size {})", self.modified_buffer.len());
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {:p} in mod buffer", object);
@@ -100,9 +102,9 @@ impl RCCollector {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
                     debug!("Child {:p} is forwarded to {:p}", child, new_child);
                     unsafe{ (*object).set_child(num, new_child); }
-                    self.increment(immix_space, child, false);
+                    self.increment(evac_allocator, child, false);
                 } else {
-                    if let Some(new_child) = self.increment(immix_space,
+                    if let Some(new_child) = self.increment(evac_allocator,
                                                             child, true) {
                         unsafe{ (*object).set_child(num, new_child); }
                     }

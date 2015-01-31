@@ -3,14 +3,16 @@
 
 use std::collections::RingBuf;
 
+use spaces::immix_space::allocator::EvacAllocator;
+use spaces::immix_space::ImmixSpace;
 use gc_object::GCObjectRef;
-use spaces::ImmixSpace;
+use spaces::CollectionType;
 
 pub struct ImmixCollector;
 
 impl ImmixCollector {
-    pub fn collect(immix_space: &mut ImmixSpace, perform_evac: bool,
-                   next_live_mark: bool, roots: &[GCObjectRef]) {
+    pub fn collect(collection_type: &CollectionType, roots: &[GCObjectRef],
+                   evac_allocator: &mut EvacAllocator, next_live_mark: bool) {
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
         let mut object_queue = RingBuf::new();
@@ -30,8 +32,8 @@ impl ImmixCollector {
                         debug!("Child {:p} is forwarded to {:p}", child, new_child);
                         unsafe{ (*object).set_child(num, new_child); }
                     } else if !unsafe{ (*child).is_marked(next_live_mark) } {
-                        if perform_evac {
-                            if let Some(new_child) = immix_space.maybe_evacuate(child) {
+                        if collection_type.is_evac() {
+                            if let Some(new_child) = evac_allocator.maybe_evacuate(child) {
                                 debug!("Evacuated child {:p} to {:p}", child, new_child);
                                 unsafe{ (*object).set_child(num, new_child); }
                                 child = new_child;

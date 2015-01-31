@@ -4,8 +4,12 @@
 mod rc_collector;
 mod immix_collector;
 
-pub use self::immix_collector::ImmixCollector;
-pub use self::rc_collector::RCCollector;
+use self::rc_collector::RCCollector;
+use self::immix_collector::ImmixCollector;
+
+use spaces::immix_space::block_info::BlockInfo;
+use spaces::immix_space::block_allocator::BlockAllocator;
+use spaces::immix_space::allocator::EvacAllocator;
 
 use std::collections::{RingBuf, HashSet, VecMap};
 use std::rc::Rc;
@@ -14,11 +18,11 @@ use std::cell::RefCell;
 use constants::{NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::GCObjectRef;
-use spaces::immix_space::block_info::BlockInfo;
-use spaces::immix_space::block_allocator::BlockAllocator;
+use spaces::CollectionType;
 
 pub struct Collector {
     block_allocator: Rc<RefCell<BlockAllocator>>,
+    rc_collector: RCCollector,
     all_blocks: RingBuf<*mut BlockInfo>,
     object_map_backup: HashSet<GCObjectRef>,
     mark_histogram: VecMap<u8>,
@@ -28,10 +32,15 @@ impl Collector {
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> Collector {
         return Collector {
             block_allocator: block_allocator,
+            rc_collector: RCCollector::new(),
             all_blocks: RingBuf::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
         };
+    }
+
+    pub fn write_barrier(&mut self, object: GCObjectRef) {
+        self.rc_collector.write_barrier(object);
     }
 
     pub fn extend_all_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
@@ -39,7 +48,7 @@ impl Collector {
     }
 
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool,
-                              evac_headroom: usize) -> (bool, bool) {
+                              evac_headroom: usize) -> CollectionType {
         let block_allocator = self.block_allocator.borrow();
         let available_blocks = block_allocator.available_blocks();
         let total_blocks = block_allocator.total_blocks();
@@ -60,19 +69,35 @@ impl Collector {
             }
         }
 
-        if !cycle_collect {
+        let perform_cycle_collect = if !cycle_collect {
             let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
-            return (block_allocator.available_blocks() < cycle_theshold, perform_evac);
+            block_allocator.available_blocks() < cycle_theshold
+        } else { true };
+
+        return match (perform_evac, perform_cycle_collect) {
+            (false, false) => CollectionType::RCCollection,
+            (true, false) => CollectionType::RCEvacCollection,
+            (false, true) => CollectionType::ImmixCollection,
+            (true, true) => CollectionType::ImmixEvacCollection,
         }
-        return (true, perform_evac);
     }
 
-    pub fn complete_collection(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
-        self.mark_histogram.clear();
-        return self.sweep_all_blocks();
+
+    pub fn collect(&mut self, collection_type: &CollectionType,
+                   roots: &[GCObjectRef], evac_allocator: &mut EvacAllocator,
+                   next_live_mark: bool) {
+
+        self.perform_rc_collection(collection_type, roots, evac_allocator);
+
+        if collection_type.is_immix() {
+            self.perform_immix_collection(collection_type, roots,
+                                          evac_allocator, next_live_mark);
+        }
     }
 
-    pub fn prepare_rc_collection(&mut self) {
+    fn perform_rc_collection(&mut self, collection_type: &CollectionType,
+                             roots: &[GCObjectRef],
+                             evac_allocator: &mut EvacAllocator) {
         if cfg!(feature = "valgrind") {
             for block in self.all_blocks.iter_mut() {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
@@ -83,9 +108,9 @@ impl Collector {
         for block in self.all_blocks.iter_mut() {
             unsafe{ (**block).remove_new_objects_from_map(); }
         }
-    }
 
-    pub fn complete_rc_collection(&mut self) {
+        self.rc_collector.collect(collection_type, roots, evac_allocator);
+
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
             for block in self.all_blocks.iter_mut() {
@@ -99,7 +124,10 @@ impl Collector {
         }
     }
 
-    pub fn prepare_immix_collection(&mut self) {
+    pub fn perform_immix_collection(&mut self, collection_type: &CollectionType,
+                                    roots: &[GCObjectRef],
+                                    evac_allocator: &mut EvacAllocator,
+                                    next_live_mark: bool) {
         if cfg!(feature = "valgrind") {
             for block in self.all_blocks.iter_mut() {
                 let block_object_map = unsafe{ (**block).get_object_map() };
@@ -111,9 +139,9 @@ impl Collector {
             unsafe{ (**block).clear_line_counts(); }
             unsafe{ (**block).clear_object_map(); }
         }
-    }
 
-    pub fn complete_immix_collection(&mut self) {
+        ImmixCollector::collect(collection_type, roots, evac_allocator, next_live_mark);
+
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
             for block in self.all_blocks.iter_mut() {
@@ -125,6 +153,12 @@ impl Collector {
             }
             self.object_map_backup.clear();
         }
+    }
+
+    pub fn complete_collection(&mut self)
+        -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
+            self.mark_histogram.clear();
+            return self.sweep_all_blocks();
     }
 }
 
