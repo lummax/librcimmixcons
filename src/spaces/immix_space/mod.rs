@@ -43,19 +43,27 @@ impl ImmixSpace {
         };
     }
 
-    pub fn decrement_lines(object: GCObjectRef) {
+    pub fn decrement_lines(&self, object: GCObjectRef) {
+        debug_assert!(self.is_gc_object(object),
+                     "decrement_lines() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).decrement_lines(object); }
     }
 
-    pub fn increment_lines(object: GCObjectRef) {
+    pub fn increment_lines(&self, object: GCObjectRef) {
+        debug_assert!(self.is_gc_object(object),
+                      "increment_lines() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).increment_lines(object); }
     }
 
-    pub fn set_gc_object(object: GCObjectRef) {
+    pub fn set_gc_object(&self, object: GCObjectRef) {
+        debug_assert!(self.block_allocator.borrow().is_in_space(object),
+                      "set_gc_object() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).set_gc_object(object); }
     }
 
-    pub fn unset_gc_object(object: GCObjectRef) {
+    pub fn unset_gc_object(&self, object: GCObjectRef) {
+        debug_assert!(self.block_allocator.borrow().is_in_space(object),
+                      "unset_gc_object() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).unset_gc_object(object); }
     }
 
@@ -108,7 +116,7 @@ impl ImmixSpace {
                               else { self.overflow_allocator.allocate(size) } {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
-            ImmixSpace::set_gc_object(object);
+            self.set_gc_object(object);
             return Some(object);
         }
         return None;
@@ -129,7 +137,7 @@ impl ImmixSpace {
                 debug_assert!(*object == *new_object,
                               "Evacuated object was not copied correcty");
                 (*object).set_forwarded(new_object);
-                ImmixSpace::unset_gc_object(object);
+                self.set_gc_object(object);
             }
             debug!("Evacuated object {:p} from block {:p} to {:p}", object,
                    block_info, new_object);
