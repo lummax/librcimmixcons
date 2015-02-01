@@ -3,13 +3,14 @@
 
 extern crate libc;
 
-use std::collections::HashSet;
+use std::collections::{HashSet, RingBuf};
 use std::ptr;
 
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 
 pub struct LargeObjectSpace  {
     objects: HashSet<GCObjectRef>,
+    new_objects: RingBuf<GCObjectRef>,
     current_live_mark: bool,
 }
 
@@ -17,6 +18,7 @@ impl LargeObjectSpace  {
     pub fn new() -> LargeObjectSpace {
         return LargeObjectSpace {
             objects: HashSet::new(),
+            new_objects: RingBuf::new(),
             current_live_mark: false,
         };
     }
@@ -32,6 +34,10 @@ impl LargeObjectSpace  {
         self.objects.remove(&object);
     }
 
+    pub fn get_new_objects(&mut self) -> RingBuf<GCObjectRef> {
+        return self.new_objects.drain().collect();
+    }
+
     pub fn set_current_live_mark(&mut self, current_live_mark: bool) {
         self.current_live_mark = current_live_mark;
     }
@@ -43,6 +49,7 @@ impl LargeObjectSpace  {
         if !object.is_null() {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             self.objects.insert(object);
+            self.new_objects.push_back(object);
             return Some(object);
         }
         return None;

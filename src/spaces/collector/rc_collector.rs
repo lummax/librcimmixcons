@@ -32,6 +32,7 @@ impl RCCollector {
         self.perform_evac = collection_type.is_evac();
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
+        self.process_los_new_objects(immix_space, large_object_space.get_new_objects());
         self.process_mod_buffer(immix_space);
         self.process_decrement_buffer(immix_space, large_object_space);
         debug!("Complete collection");
@@ -87,6 +88,15 @@ impl RCCollector {
             debug!("Process root object: {:p}", root);
             self.increment(immix_space, root, false);
             self.old_root_buffer.push_back(root);
+        }
+    }
+
+    fn process_los_new_objects(&mut self, immix_space: &mut ImmixSpace,
+                               new_objects: RingBuf<GCObjectRef>) {
+        debug!("Process los new_objects (size {})", new_objects.len());
+        for object in new_objects.into_iter() {
+            self.increment(immix_space, object, false);
+            self.decrement(object);
         }
     }
 
