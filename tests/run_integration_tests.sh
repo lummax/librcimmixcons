@@ -10,7 +10,7 @@ function run_test {
 }
 
 code=0;
-for path in tests/*.c; do
+for path in tests/$1*.c; do
     file=`basename "$path" | sed 's/\.c//'`;
     echo -n "Running test $file.."
     output=$(run_test $file 2>&1);
