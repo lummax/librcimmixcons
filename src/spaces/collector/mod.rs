@@ -151,7 +151,8 @@ impl Collector {
     }
 
     pub fn complete_collection(&mut self, collection_type: &CollectionType,
-                               immix_space: &mut ImmixSpace) {
+                               immix_space: &mut ImmixSpace,
+                               large_object_space: &mut LargeObjectSpace) {
         self.mark_histogram.clear();
         let (recyclable_blocks, free_blocks) = self.sweep_all_blocks();
         immix_space.set_recyclable_blocks(recyclable_blocks);
@@ -163,6 +164,10 @@ impl Collector {
                                                     .map(|&b| b).collect());
         immix_space.return_blocks(free_blocks.iter().skip(evac_headroom)
                                              .map(|&b| b).collect());
+
+        if collection_type.is_immix() {
+            large_object_space.sweep()
+        }
     }
 }
 

@@ -97,6 +97,9 @@ impl Spaces {
                                &mut self.large_object_space,
                                !self.current_live_mark);
 
+        self.collector.complete_collection(&collection_type, &mut self.immix_space,
+                                           &mut self.large_object_space);
+
         if collection_type.is_immix() {
             self.current_live_mark = !self.current_live_mark;
             self.immix_space.set_current_live_mark(self.current_live_mark);
@@ -106,8 +109,6 @@ impl Spaces {
                 unsafe{ (**root).set_pinned(false); }
             }
         }
-
-        self.collector.complete_collection(&collection_type, &mut self.immix_space);
         valgrind_assert_no_leaks!();
     }
 }
