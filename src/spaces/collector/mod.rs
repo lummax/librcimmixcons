@@ -8,7 +8,6 @@ use self::rc_collector::RCCollector;
 use self::immix_collector::ImmixCollector;
 
 use spaces::immix_space::ImmixSpace;
-use spaces::immix_space::EvacAllocator;
 use spaces::immix_space::BlockInfo;
 
 use std::collections::{RingBuf, HashSet, VecMap};
@@ -78,20 +77,20 @@ impl Collector {
 
 
     pub fn collect(&mut self, collection_type: &CollectionType,
-                   roots: &[GCObjectRef], evac_allocator: &mut EvacAllocator,
+                   roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
                    next_live_mark: bool) {
 
-        self.perform_rc_collection(collection_type, roots, evac_allocator);
+        self.perform_rc_collection(collection_type, roots, immix_space);
 
         if collection_type.is_immix() {
             self.perform_immix_collection(collection_type, roots,
-                                          evac_allocator, next_live_mark);
+                                          immix_space, next_live_mark);
         }
     }
 
     fn perform_rc_collection(&mut self, collection_type: &CollectionType,
                              roots: &[GCObjectRef],
-                             evac_allocator: &mut EvacAllocator) {
+                             immix_space: &mut ImmixSpace) {
         if cfg!(feature = "valgrind") {
             for block in self.all_blocks.iter_mut() {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
@@ -103,7 +102,7 @@ impl Collector {
             unsafe{ (**block).remove_new_objects_from_map(); }
         }
 
-        self.rc_collector.collect(collection_type, roots, evac_allocator);
+        self.rc_collector.collect(collection_type, roots, immix_space);
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
@@ -120,7 +119,7 @@ impl Collector {
 
     pub fn perform_immix_collection(&mut self, collection_type: &CollectionType,
                                     roots: &[GCObjectRef],
-                                    evac_allocator: &mut EvacAllocator,
+                                    immix_space: &mut ImmixSpace,
                                     next_live_mark: bool) {
         if cfg!(feature = "valgrind") {
             for block in self.all_blocks.iter_mut() {
@@ -134,7 +133,7 @@ impl Collector {
             unsafe{ (**block).clear_object_map(); }
         }
 
-        ImmixCollector::collect(collection_type, roots, evac_allocator, next_live_mark);
+        ImmixCollector::collect(collection_type, roots, immix_space, next_live_mark);
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
@@ -157,7 +156,7 @@ impl Collector {
 
         // XXX We should not use a constant here, but something that
         // XXX changes dynamically (see rcimmix: MAX heuristic).
-        let evac_headroom = EVAC_HEADROOM - immix_space.evac_allocator().evac_headroom();
+        let evac_headroom = EVAC_HEADROOM - immix_space.evac_headroom();
         immix_space.extend_evac_headroom(free_blocks.iter().take(evac_headroom)
                                                     .map(|&b| b).collect());
         immix_space.return_blocks(free_blocks.iter().skip(evac_headroom)

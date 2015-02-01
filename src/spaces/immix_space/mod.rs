@@ -9,9 +9,9 @@ use self::block_allocator::BlockAllocator;
 use self::allocator::Allocator;
 use self::allocator::NormalAllocator;
 use self::allocator::OverflowAllocator;
+use self::allocator::EvacAllocator;
 
 pub use self::block_info::BlockInfo;
-pub use self::allocator::EvacAllocator;
 
 use std::{mem, ptr};
 use std::collections::RingBuf;
@@ -94,10 +94,6 @@ impl ImmixSpace {
         self.evac_allocator.extend_evac_headroom(blocks);
     }
 
-    pub fn evac_allocator(&mut self) -> &mut EvacAllocator {
-        return &mut self.evac_allocator;
-    }
-
     pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
         return self.allocator.get_all_blocks().drain()
                    .chain(self.overflow_allocator.get_all_blocks().drain())
@@ -116,6 +112,10 @@ impl ImmixSpace {
             return Some(object);
         }
         return None;
+    }
+
+    pub fn maybe_evacuate(&mut self, object: GCObjectRef) -> Option<GCObjectRef> {
+        return self.evac_allocator.maybe_evacuate(object);
     }
 }
 

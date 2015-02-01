@@ -87,7 +87,7 @@ impl Spaces {
         }
 
         self.collector.collect(&collection_type, roots.as_slice(),
-                               self.immix_space.evac_allocator(),
+                               &mut self.immix_space,
                                !self.current_live_mark);
 
         if collection_type.is_immix() {
