@@ -2,6 +2,7 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 use std::{ptr, os};
+use std::collections::RingBuf;
 
 use spaces::immix_space::block_info::BlockInfo;
 
@@ -41,9 +42,8 @@ impl BlockAllocator {
         return self.free_blocks.pop().or_else(|| self.build_next_block());
     }
 
-    pub fn return_block(&mut self, block: *mut BlockInfo) {
-        debug!("Returned block {:p}", block);
-        self.free_blocks.push(block);
+    pub fn return_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+        self.free_blocks.extend(blocks.into_iter());
     }
 
     pub fn total_blocks(&self) -> usize {

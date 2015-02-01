@@ -4,30 +4,28 @@
 mod block_info;
 mod block_allocator;
 mod allocator;
-mod collector;
 
-use self::block_info::BlockInfo;
 use self::block_allocator::BlockAllocator;
 use self::allocator::Allocator;
 use self::allocator::NormalAllocator;
 use self::allocator::OverflowAllocator;
-use self::allocator::EvacAllocator;
-use self::collector::Collector;
+
+pub use self::block_info::BlockInfo;
+pub use self::allocator::EvacAllocator;
 
 use std::{mem, ptr};
+use std::collections::RingBuf;
 use std::rc::Rc;
 use std::cell::RefCell;
 
 use constants::{BLOCK_SIZE, MEDIUM_OBJECT};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
-use spaces::CollectionType;
 
 pub struct ImmixSpace {
     block_allocator: Rc<RefCell<BlockAllocator>>,
     allocator: NormalAllocator,
     overflow_allocator: OverflowAllocator,
     evac_allocator: EvacAllocator,
-    collector: Collector,
     current_live_mark: bool,
 }
 
@@ -36,13 +34,11 @@ impl ImmixSpace {
         let block_allocator = Rc::new(RefCell::new(BlockAllocator::new()));
         let normal_block_allocator = block_allocator.clone();
         let overflow_block_allocator = block_allocator.clone();
-        let collector_block_allocator = block_allocator.clone();
         return ImmixSpace {
             block_allocator: block_allocator,
             allocator: NormalAllocator::new(normal_block_allocator),
             overflow_allocator: OverflowAllocator::new(overflow_block_allocator),
             evac_allocator: EvacAllocator::new(),
-            collector: Collector::new(collector_block_allocator),
             current_live_mark: false,
         };
     }
@@ -64,20 +60,49 @@ impl ImmixSpace {
     }
 
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
-        if self.is_in_space(object) {
+        if self.block_allocator.borrow().is_in_space(object) {
             return unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) };
         }
         return false;
     }
 
-    pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.block_allocator.borrow().is_in_space(object);
+    pub fn total_blocks(&self) -> usize {
+        return self.block_allocator.borrow().total_blocks();
     }
 
-    pub fn write_barrier(&mut self, object: GCObjectRef) {
-        if self.is_gc_object(object) {
-            self.collector.write_barrier(object);
-        }
+    pub fn available_blocks(&self) -> usize {
+        return self.block_allocator.borrow().available_blocks();
+    }
+
+    pub fn evac_headroom(&self) -> usize {
+        return self.evac_allocator.evac_headroom();
+    }
+
+    pub fn return_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+        self.block_allocator.borrow_mut().return_blocks(blocks);
+    }
+
+    pub fn set_current_live_mark(&mut self, current_live_mark: bool) {
+        self.current_live_mark = current_live_mark;
+    }
+
+    pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+        self.allocator.set_recyclable_blocks(blocks);
+    }
+
+    pub fn extend_evac_headroom(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+        self.evac_allocator.extend_evac_headroom(blocks);
+    }
+
+    pub fn evac_allocator(&mut self) -> &mut EvacAllocator {
+        return &mut self.evac_allocator;
+    }
+
+    pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+        return self.allocator.get_all_blocks().drain()
+                   .chain(self.overflow_allocator.get_all_blocks().drain())
+                   .chain(self.evac_allocator.get_all_blocks().drain())
+                   .collect();
     }
 
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
@@ -91,30 +116,6 @@ impl ImmixSpace {
             return Some(object);
         }
         return None;
-    }
-
-    pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool)
-            -> CollectionType {
-        self.collector.extend_all_blocks(self.allocator.get_all_blocks());
-        self.collector.extend_all_blocks(self.overflow_allocator.get_all_blocks());
-        self.collector.extend_all_blocks(self.evac_allocator.get_all_blocks());
-        return self.collector.prepare_collection(evacuation, cycle_collect,
-                                                 self.evac_allocator.evac_headroom());
-    }
-
-    pub fn collect(&mut self, collection_type: &CollectionType, roots: &[GCObjectRef]) {
-        self.collector.collect(collection_type, roots, &mut self.evac_allocator,
-                               !self.current_live_mark);
-    }
-
-    pub fn complete_collection(&mut self, collection_type: &CollectionType) {
-        if collection_type.is_immix() {
-            self.current_live_mark = !self.current_live_mark;
-        }
-
-        let (recyclable_blocks, evac_headroom) = self.collector.complete_collection();
-        self.allocator.set_recyclable_blocks(recyclable_blocks);
-        self.evac_allocator.extend_evac_headroom(evac_headroom);
     }
 }
 

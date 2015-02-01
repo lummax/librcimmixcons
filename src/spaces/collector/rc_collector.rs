@@ -3,7 +3,7 @@
 
 use std::collections::RingBuf;
 
-use spaces::immix_space::allocator::EvacAllocator;
+use spaces::immix_space::EvacAllocator;
 use spaces::immix_space::ImmixSpace;
 use gc_object::GCObjectRef;
 use spaces::CollectionType;

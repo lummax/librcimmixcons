@@ -7,13 +7,11 @@ mod immix_collector;
 use self::rc_collector::RCCollector;
 use self::immix_collector::ImmixCollector;
 
-use spaces::immix_space::block_info::BlockInfo;
-use spaces::immix_space::block_allocator::BlockAllocator;
-use spaces::immix_space::allocator::EvacAllocator;
+use spaces::immix_space::ImmixSpace;
+use spaces::immix_space::EvacAllocator;
+use spaces::immix_space::BlockInfo;
 
 use std::collections::{RingBuf, HashSet, VecMap};
-use std::rc::Rc;
-use std::cell::RefCell;
 
 use constants::{NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
@@ -21,7 +19,6 @@ use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
 pub struct Collector {
-    block_allocator: Rc<RefCell<BlockAllocator>>,
     rc_collector: RCCollector,
     all_blocks: RingBuf<*mut BlockInfo>,
     object_map_backup: HashSet<GCObjectRef>,
@@ -29,9 +26,8 @@ pub struct Collector {
 }
 
 impl Collector {
-    pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> Collector {
+    pub fn new() -> Collector {
         return Collector {
-            block_allocator: block_allocator,
             rc_collector: RCCollector::new(),
             all_blocks: RingBuf::new(),
             object_map_backup: HashSet::new(),
@@ -48,10 +44,8 @@ impl Collector {
     }
 
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool,
+                              available_blocks: usize, total_blocks: usize,
                               evac_headroom: usize) -> CollectionType {
-        let block_allocator = self.block_allocator.borrow();
-        let available_blocks = block_allocator.available_blocks();
-        let total_blocks = block_allocator.total_blocks();
         let mut perform_evac = evacuation;
 
         let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
@@ -71,7 +65,7 @@ impl Collector {
 
         let perform_cycle_collect = if !cycle_collect {
             let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
-            block_allocator.available_blocks() < cycle_theshold
+            available_blocks < cycle_theshold
         } else { true };
 
         return match (perform_evac, perform_cycle_collect) {
@@ -155,19 +149,27 @@ impl Collector {
         }
     }
 
-    pub fn complete_collection(&mut self)
-        -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
-            self.mark_histogram.clear();
-            return self.sweep_all_blocks();
+    pub fn complete_collection(&mut self, collection_type: &CollectionType,
+                               immix_space: &mut ImmixSpace) {
+        self.mark_histogram.clear();
+        let (recyclable_blocks, free_blocks) = self.sweep_all_blocks();
+        immix_space.set_recyclable_blocks(recyclable_blocks);
+
+        // XXX We should not use a constant here, but something that
+        // XXX changes dynamically (see rcimmix: MAX heuristic).
+        let evac_headroom = EVAC_HEADROOM - immix_space.evac_allocator().evac_headroom();
+        immix_space.extend_evac_headroom(free_blocks.iter().take(evac_headroom)
+                                                    .map(|&b| b).collect());
+        immix_space.return_blocks(free_blocks.iter().skip(evac_headroom)
+                                             .map(|&b| b).collect());
     }
 }
 
 impl Collector {
     fn sweep_all_blocks(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
-        let mut block_allocator = self.block_allocator.borrow_mut();
         let mut unavailable_blocks = RingBuf::new();
         let mut recyclable_blocks = RingBuf::new();
-        let mut evac_headroom = RingBuf::new();
+        let mut free_blocks = RingBuf::new();
         for block in self.all_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
                 if cfg!(feature = "valgrind") {
@@ -177,16 +179,8 @@ impl Collector {
                     }
                 }
                 unsafe{ (*block).reset() ;}
-
-                // XXX We should not use a constant here, but something that
-                // XXX changes dynamically (see rcimmix: MAX heuristic).
-                if evac_headroom.len() < EVAC_HEADROOM {
-                    debug!("Buffer free block {:p} for evacuation", block);
-                    evac_headroom.push_back(block);
-                } else {
-                    debug!("Return block {:p} to global block allocator", block);
-                    block_allocator.return_block(block);
-                }
+                debug!("Push block {:p} into free_blocks", block);
+                free_blocks.push_back(block);
             } else {
                 unsafe{ (*block).count_holes(); }
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
@@ -210,7 +204,7 @@ impl Collector {
             }
         }
         self.all_blocks = unavailable_blocks;
-        return (recyclable_blocks, evac_headroom);
+        return (recyclable_blocks, free_blocks);
     }
 
     fn establish_hole_threshhold(&self, evac_headroom: usize) -> u8 {
