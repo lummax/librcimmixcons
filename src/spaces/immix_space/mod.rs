@@ -18,7 +18,7 @@ use std::{mem, ptr};
 use std::rc::Rc;
 use std::cell::RefCell;
 
-use constants::{BLOCK_SIZE, LINE_SIZE};
+use constants::{BLOCK_SIZE, MEDIUM_OBJECT};
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
 use spaces::CollectionType;
 
@@ -83,7 +83,7 @@ impl ImmixSpace {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        if let Some(object) = if size < LINE_SIZE { self.allocator.allocate(size) }
+        if let Some(object) = if size < MEDIUM_OBJECT { self.allocator.allocate(size) }
                               else { self.overflow_allocator.allocate(size) } {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
