@@ -2,9 +2,11 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 mod immix_space;
+mod large_object_space;
 mod collector;
 
 use self::immix_space::ImmixSpace;
+use self::large_object_space::LargeObjectSpace;
 use self::collector::Collector;
 
 use constants::LARGE_OBJECT;
@@ -38,6 +40,7 @@ impl CollectionType {
 
 pub struct Spaces {
     immix_space: ImmixSpace,
+    large_object_space: LargeObjectSpace,
     collector: Collector,
     current_live_mark: bool,
 }
@@ -46,13 +49,15 @@ impl Spaces {
     pub fn new() -> Spaces {
         return Spaces {
             immix_space: ImmixSpace::new(),
+            large_object_space: LargeObjectSpace::new(),
             collector: Collector::new(),
             current_live_mark: false,
         };
     }
 
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
-        return self.immix_space.is_gc_object(object);
+        return self.immix_space.is_gc_object(object)
+               || self.large_object_space.is_gc_object(object);
     }
 
     pub fn write_barrier(&mut self, object: GCObjectRef) {
@@ -64,7 +69,8 @@ impl Spaces {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef>{
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        return self.immix_space.allocate(rtti)
+        return if size < LARGE_OBJECT { self.immix_space.allocate(rtti) }
+               else { self.large_object_space.allocate(rtti) }
                .or_else(|| { self.collect(true, true); self.allocate(rtti) });
     }
 
@@ -93,6 +99,7 @@ impl Spaces {
         if collection_type.is_immix() {
             self.current_live_mark = !self.current_live_mark;
             self.immix_space.set_current_live_mark(self.current_live_mark);
+            self.large_object_space.set_current_live_mark(self.current_live_mark);
 
             for root in roots.iter() {
                 unsafe{ (**root).set_pinned(false); }
