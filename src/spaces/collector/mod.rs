@@ -7,8 +7,9 @@ mod immix_collector;
 use self::rc_collector::RCCollector;
 use self::immix_collector::ImmixCollector;
 
-use spaces::immix_space::ImmixSpace;
 use spaces::immix_space::BlockInfo;
+use spaces::immix_space::ImmixSpace;
+use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{RingBuf, HashSet, VecMap};
 
@@ -78,9 +79,9 @@ impl Collector {
 
     pub fn collect(&mut self, collection_type: &CollectionType,
                    roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
-                   next_live_mark: bool) {
+                   large_object_space: &mut LargeObjectSpace, next_live_mark: bool) {
 
-        self.perform_rc_collection(collection_type, roots, immix_space);
+        self.perform_rc_collection(collection_type, roots, immix_space, large_object_space);
 
         if collection_type.is_immix() {
             self.perform_immix_collection(collection_type, roots,
@@ -90,7 +91,8 @@ impl Collector {
 
     fn perform_rc_collection(&mut self, collection_type: &CollectionType,
                              roots: &[GCObjectRef],
-                             immix_space: &mut ImmixSpace) {
+                             immix_space: &mut ImmixSpace,
+                             large_object_space: &mut LargeObjectSpace) {
         if cfg!(feature = "valgrind") {
             for block in self.all_blocks.iter_mut() {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
@@ -102,7 +104,7 @@ impl Collector {
             unsafe{ (**block).remove_new_objects_from_map(); }
         }
 
-        self.rc_collector.collect(collection_type, roots, immix_space);
+        self.rc_collector.collect(collection_type, roots, immix_space, large_object_space);
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();

@@ -94,6 +94,7 @@ impl Spaces {
 
         self.collector.collect(&collection_type, roots.as_slice(),
                                &mut self.immix_space,
+                               &mut self.large_object_space,
                                !self.current_live_mark);
 
         if collection_type.is_immix() {

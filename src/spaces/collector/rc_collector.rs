@@ -4,6 +4,7 @@
 use std::collections::RingBuf;
 
 use spaces::immix_space::ImmixSpace;
+use spaces::large_object_space::LargeObjectSpace;
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
@@ -25,13 +26,14 @@ impl RCCollector {
     }
 
     pub fn collect(&mut self, collection_type: &CollectionType,
-                   roots: &[GCObjectRef], immix_space: &mut ImmixSpace) {
+                   roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
+                   large_object_space: &mut LargeObjectSpace) {
         debug!("Start RC collection");
         self.perform_evac = collection_type.is_evac();
         self.process_old_roots();
         self.process_current_roots(immix_space, roots);
         self.process_mod_buffer(immix_space);
-        self.process_decrement_buffer(immix_space);
+        self.process_decrement_buffer(immix_space, large_object_space);
         debug!("Complete collection");
     }
 
@@ -60,7 +62,7 @@ impl RCCollector {
                  object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
         debug!("Increment object {:p}", object);
         if unsafe{ (*object).increment() } {
-            if try_evacuate && self.perform_evac {
+            if try_evacuate && self.perform_evac && immix_space.is_gc_object(object) {
                 if let Some(new_object) = immix_space.maybe_evacuate(object) {
                     debug!("Evacuated object {:p} to {:p}", object, new_object);
                     immix_space.decrement_lines(object);
@@ -93,8 +95,10 @@ impl RCCollector {
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {:p} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
-            immix_space.set_gc_object(object);
-            immix_space.increment_lines(object);
+            if immix_space.is_gc_object(object) {
+                immix_space.set_gc_object(object);
+                immix_space.increment_lines(object);
+            }
             let children = unsafe{ (*object).children() };
             for (num, child) in children.into_iter().enumerate() {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
@@ -111,17 +115,23 @@ impl RCCollector {
         }
     }
 
-    fn process_decrement_buffer(&mut self, immix_space: &mut ImmixSpace) {
+    fn process_decrement_buffer(&mut self, immix_space: &mut ImmixSpace,
+                                large_object_space: &mut LargeObjectSpace) {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
         while let Some(object) =  self.decrement_buffer.pop_front() {
             debug!("Process object {:p} in dec buffer", object);
             if unsafe{ (*object).decrement() } {
-                immix_space.decrement_lines(object);
-                immix_space.unset_gc_object(object);
                 for child in unsafe{ (*object).children() }.into_iter() {
                     self.decrement(child);
                 }
-                valgrind_freelike!(object);
+                if immix_space.is_gc_object(object) {
+                    immix_space.decrement_lines(object);
+                    immix_space.unset_gc_object(object);
+                    valgrind_freelike!(object);
+                } else if large_object_space.is_gc_object(object) {
+                    large_object_space.free(object);
+                    large_object_space.unset_gc_object(object);
+                }
             }
         }
     }
