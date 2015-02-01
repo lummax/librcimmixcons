@@ -10,6 +10,7 @@ pub const NUM_LINES_PER_BLOCK: usize = BLOCK_SIZE / LINE_SIZE;
 pub const EVAC_HEADROOM: usize = 5;
 
 pub const MEDIUM_OBJECT: usize = LINE_SIZE;
+pub const LARGE_OBJECT: usize = 8 * 1024;
 
 pub const CICLE_TRIGGER_THRESHHOLD: f32 = 0.01;
 pub const EVAC_TRIGGER_THRESHHOLD: f32 = 0.01;
