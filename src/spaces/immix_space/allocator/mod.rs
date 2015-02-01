@@ -28,6 +28,7 @@ pub trait Allocator {
     fn handle_full_block(&mut self, block: *mut BlockInfo);
 
     fn allocate(&mut self, size: usize) -> Option<GCObjectRef> {
+        debug!("Request to allocate an object of size {}", size);
         return self.take_current_block()
                    .and_then(|tp| self.scan_for_hole(size, tp))
                    .or_else(|| self.handle_no_hole(size))

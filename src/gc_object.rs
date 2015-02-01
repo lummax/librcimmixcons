@@ -56,7 +56,7 @@ impl GCRTTI {
 
 impl GCObject {
     pub fn new(rtti: *const GCRTTI, mark: bool) -> GCObject {
-        debug!("GCobject::new(rtti={:p}, mark={}", rtti, mark);
+        debug!("GCobject::new(rtti={:p}, mark={})", rtti, mark);
         let size = unsafe{ (*rtti).object_size() };
         return GCObject {
             header: GCHeader {
