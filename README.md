@@ -24,7 +24,6 @@ Status
 This is not usable an the moment. Major TODOs are:
 
 - TESTING
-- Implement a Large-Object-Space
 - Optimize `GCHeader` fields and use limited reference count bits
 - Implement multi-threading (only single-thread applications are supported right now)
 - Improve performance
@@ -36,6 +35,7 @@ What somewhat works (please refer to the integration tests in `tests/`):
 - Deferred coalesced reference counting collection
 - Immix backup tracing (cycle) collection
 - Opportunistic proactive and reactive defragmentation
+- A simple free-list large-object-space with RC and MS collection
 
 Building
 --------
