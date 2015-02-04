@@ -13,6 +13,7 @@ typedef struct {
     uint8_t forwarded;
     uint8_t logged;
     uint8_t marked;
+    uint8_t pinned;
     uint8_t new;
 } GCHeader;
 
