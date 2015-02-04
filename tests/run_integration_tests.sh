@@ -5,6 +5,7 @@ library=`basename target/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
 function run_test {
     local file=$1;
     clang "tests/$file.c" -L target -l "$library" -o "target/$file" || return 1;
+    LD_LIBRARY_PATH=target "./target/$file" || return 2;
     LD_LIBRARY_PATH=target valgrind "./target/$file" || return 3;
     return 0;
 }
