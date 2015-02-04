@@ -9,6 +9,9 @@ use std::{ptr, mem};
 use gc_object::GCObjectRef;
 use spaces::Spaces;
 
+/// Abstractions over the stack to scan the stack and the registers for
+/// garbage collection roots.
+
 mod setjmp {
     extern crate libc;
 
@@ -50,6 +53,9 @@ mod pthread {
     }
 }
 
+/// Return the top of the stack.
+///
+/// See the `llvm.frameaddress` intrinsic for details.
 #[inline(always)]
 fn get_stack_top() -> *mut u8 {
     extern {
@@ -59,6 +65,10 @@ fn get_stack_top() -> *mut u8 {
     unsafe{ return frameaddress(0); }
 }
 
+/// Return the bottom of the stack.
+///
+/// This will be the lowest addressable address of the current threads stack
+/// buffer minus the buffer size.
 #[inline(always)]
 #[cfg(target_os = "linux")]
 fn get_stack_bottom() -> Option<*mut u8> {
@@ -77,6 +87,7 @@ fn get_stack_bottom() -> Option<*mut u8> {
     }
 }
 
+/// Save the content of the registers on the stack.
 #[inline(always)]
 #[cfg(all(target_os = "linux", any(target_arch = "x86", target_arch = "x86_64")))]
 fn save_registers() -> setjmp::jmp_buf {
@@ -87,6 +98,11 @@ fn save_registers() -> setjmp::jmp_buf {
     }
 }
 
+/// Scan the stack and registers for garbage collection roots.
+///
+/// This will save the registers on the current threads stack and validate all
+/// non-null values on the stack as possible garbage collection roots using
+/// the supplied `Spaces` (`Spaces.is_gc_object()`)
 #[allow(unused_variables)]
 pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
     let jmp_buf = save_registers();
