@@ -9,13 +9,26 @@ use std::collections::RingBuf;
 
 use constants::{BLOCK_SIZE, LINE_SIZE};
 
+/// The `EvacAllocator` is used during the opportunistic evacuation in the
+/// immix space.
+///
+/// It allocates from a list of up to `EVAC_HEADROOM` buffered free blocks.
+///
+/// _TODO_: We should not use a constant here, but something that changes
+/// dynamically (see rcimmix: MAX heuristic).
 pub struct EvacAllocator {
+    /// The exhausted blocks.
     unavailable_blocks: RingBuf<*mut BlockInfo>,
+
+    /// The free blocks to return on 'get_new_block()'.
     evac_headroom: RingBuf<*mut BlockInfo>,
+
+    /// The current block to allocate from.
     current_block: Option<BlockTuple>,
 }
 
 impl EvacAllocator {
+    /// Create a new `EvacAllocator`.
     pub fn new() -> EvacAllocator {
         return EvacAllocator {
             unavailable_blocks: RingBuf::new(),
@@ -24,10 +37,12 @@ impl EvacAllocator {
         };
     }
 
+    /// Extend the list of free blocks for evacuation.
     pub fn extend_evac_headroom(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.evac_headroom.extend(blocks.into_iter());
     }
 
+    /// Get the number of currently free blocks.
     pub fn evac_headroom(&self) -> usize {
         return self.evac_headroom.len();
     }
