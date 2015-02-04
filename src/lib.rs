@@ -19,27 +19,51 @@ mod gc_object;
 mod spaces;
 mod stack;
 
+/// The `RCImmixCons` garbage collector.
+///
+/// This is the conservative reference counting garbage collector with the
+/// immix heap partition schema.
+///
+/// The `allocate()` function will return a pointer to a `GCObject`. Please
+/// see the documentation of `GCHeader`, `GCRTTI` and `GCObject` for details.
+///
+/// Always call `write_barrier()` on an object before modifying its members.
 pub struct RCImmixCons {
+    /// The different spaces of this garbage collector.
     spaces: spaces::Spaces,
 }
 
 impl RCImmixCons {
+    /// Create a new `RCImmixCons`.
     pub fn new() -> RCImmixCons {
         return RCImmixCons {
             spaces: spaces::Spaces::new(),
         };
     }
 
+    /// Allocate a new object described by the `rtti` or returns `None`.
+    ///
+    /// This may trigger a garbage collection if the allocation was not
+    /// succussful. If there is still no memory to fullfill the allocation
+    /// request return `None`.
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
         return self.spaces.allocate(rtti)
                    .or_else(|| { self.collect(true, true);
                                  self.spaces.allocate(rtti) });
     }
 
+    /// Trigger a garbage collection.
+    ///
+    /// This will always run the referece counting collector. If `evacuation`
+    /// is set the collectors will try to evacuate. If `cycle_collect` is set
+    /// the immix tracing collector will be used.
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
         return self.spaces.collect(evacuation, cycle_collect);
     }
 
+    /// A write barrier for the given `object`.
+    ///
+    /// Call this function before modifying the members of this object!
     pub fn write_barrier(&mut self, object: GCObjectRef) {
         return self.spaces.write_barrier(object);
     }
