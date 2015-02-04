@@ -18,14 +18,32 @@ use constants::{NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
+/// The `Collector` is a composition of the collection implementations
+/// `RCCollector` and `ImmixCollector`.
+///
+/// It manages performs common tasks and manages the cooperation between the
+/// two collectors.
 pub struct Collector {
+    /// The reference counting collector.
     rc_collector: RCCollector,
+
+    /// A buffer to store all managed blocks during collection.
     all_blocks: RingBuf<*mut BlockInfo>,
+
+    /// A global backup of the object map.
+    ///
+    /// This is only used, if the library is compiled with `Valgrind` support
+    /// and needed for accurate marking of addresses as `malloclike_block` and
+    /// `freelike_block`.
     object_map_backup: HashSet<GCObjectRef>,
+
+    /// The mark histogram used during collection to calculate the required
+    /// space for evacuation.
     mark_histogram: VecMap<u8>,
 }
 
 impl Collector {
+    /// Create a new `Collector`.
     pub fn new() -> Collector {
         return Collector {
             rc_collector: RCCollector::new(),
@@ -35,14 +53,22 @@ impl Collector {
         };
     }
 
+    /// A write barrier for the given `object` used with the `RCCollector`.
     pub fn write_barrier(&mut self, object: GCObjectRef) {
         self.rc_collector.write_barrier(object);
     }
 
+    /// Store the given blocks into the buffer for use during the collection.
     pub fn extend_all_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.all_blocks.extend(blocks.into_iter());
     }
 
+    /// Prepare a collection.
+    ///
+    /// This function decides if a evacuating and/or cycle collecting
+    /// collection will be performed. If `evacuation` is set the collectors
+    /// will try to evacuate. If `cycle_collect` is set the immix tracing
+    /// collector will be used.
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool,
                               available_blocks: usize, total_blocks: usize,
                               evac_headroom: usize) -> CollectionType {
@@ -76,7 +102,9 @@ impl Collector {
         }
     }
 
-
+    /// Perform the collection.
+    ///
+    /// See `Spaces.collect() how it is called.`
     pub fn collect(&mut self, collection_type: &CollectionType,
                    roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
                    large_object_space: &mut LargeObjectSpace, next_live_mark: bool) {
@@ -89,6 +117,7 @@ impl Collector {
         }
     }
 
+    /// Perform the reference counting collection.
     fn perform_rc_collection(&mut self, collection_type: &CollectionType,
                              roots: &[GCObjectRef],
                              immix_space: &mut ImmixSpace,
@@ -121,6 +150,7 @@ impl Collector {
         }
     }
 
+    /// Perform the immix tracing collection.
     pub fn perform_immix_collection(&mut self, collection_type: &CollectionType,
                                     roots: &[GCObjectRef],
                                     immix_space: &mut ImmixSpace,
@@ -152,6 +182,7 @@ impl Collector {
         }
     }
 
+    /// Complete the collection.
     pub fn complete_collection(&mut self, collection_type: &CollectionType,
                                immix_space: &mut ImmixSpace,
                                large_object_space: &mut LargeObjectSpace) {
@@ -174,6 +205,10 @@ impl Collector {
 }
 
 impl Collector {
+    /// Sweep all blocks in the buffer after the collection.
+    ///
+    /// This function returns a list of recyclable blocks and a list of free
+    /// blocks.
     fn sweep_all_blocks(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
         let mut unavailable_blocks = RingBuf::new();
         let mut recyclable_blocks = RingBuf::new();
@@ -215,6 +250,8 @@ impl Collector {
         return (recyclable_blocks, free_blocks);
     }
 
+    /// Calculate how many holes a block needs to have to be selected as a
+    /// evacuation candidate.
     fn establish_hole_threshhold(&self, evac_headroom: usize) -> u8 {
         let mut available_histogram : VecMap<u8> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
         for block in self.all_blocks.iter() {
