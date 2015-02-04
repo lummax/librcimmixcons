@@ -8,14 +8,36 @@ use spaces::large_object_space::LargeObjectSpace;
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
+/// The `RCCollector` perform the steps for the deferred coalesced
+/// conservative reference counting. The `write_barrier()` must be called
+/// before an objects members are changed. The `collect()` function should be
+/// called periodically to incrementally collect garbage.
 pub struct RCCollector {
+    /// The roots of the last collection.
+    ///
+    /// At the start of a reference counting collection a decrement is
+    /// enqueued for every old root.
     old_root_buffer: RingBuf<GCObjectRef>,
+
+    /// The enqueued decrements on objects.
+    ///
+    /// These are applied in the last step of the reference counting
+    /// collection.
     decrement_buffer: RingBuf<GCObjectRef>,
+
+    /// A buffer of modified objects.
+    ///
+    /// Objects are pushed into this buffer if they are encountered for the
+    /// first time by the reference counting collector or marked as modified
+    /// using the `write_barrier()`.
     modified_buffer: RingBuf<GCObjectRef>,
+
+    /// Flag if this collection is a evacuating collection.
     perform_evac: bool,
 }
 
 impl RCCollector {
+    /// Create a new `RCCollector`.
     pub fn new() -> RCCollector {
         return RCCollector {
             old_root_buffer: RingBuf::new(),
@@ -25,6 +47,15 @@ impl RCCollector {
         };
     }
 
+    /// Collect garbage using deferred coalesced conservative reference
+    /// counting.
+    ///
+    /// The steps are:
+    /// - process_old_roots()
+    /// - process_current_roots()
+    /// - process_los_new_objects()
+    /// - process_mod_buffer()
+    /// - process_decrement_buffer()
     pub fn collect(&mut self, collection_type: &CollectionType,
                    roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
                    large_object_space: &mut LargeObjectSpace) {
@@ -38,6 +69,9 @@ impl RCCollector {
         debug!("Complete collection");
     }
 
+    /// The write barrier for an object in deferred coalesced reference
+    /// counting pushes the object into the modified buffer and enqueues a
+    /// decrement for the old children.
     pub fn write_barrier(&mut self, object: GCObjectRef) {
         debug!("Write barrier on object {:p}", object);
         self.modified(object);
@@ -49,16 +83,26 @@ impl RCCollector {
 }
 
 impl RCCollector {
+    /// Push an object into the modified buffer.
     fn modified(&mut self, object: GCObjectRef) {
         debug!("Push object {:p} into mod buffer", object);
         self.modified_buffer.push_back(object);
     }
 
+    /// Enqueue a decrement for an object.
     fn decrement(&mut self, object: GCObjectRef) {
         debug!("Push object {:p} into dec buffer", object);
         self.decrement_buffer.push_back(object);
     }
 
+    /// Perform an increment for an object.
+    ///
+    /// If this is the first time the reference counting collector encounters
+    /// this object, it will be pushed into the modified buffer.
+    ///
+    /// If `try_evacuate` is set, the object is new an in the immix space and
+    /// the collectors performs an opportunistic evacuation, this function
+    /// tries to evacuate the object into a free block.
     fn increment(&mut self, immix_space: &mut ImmixSpace,
                  object: GCObjectRef, try_evacuate: bool) -> Option<GCObjectRef> {
         debug!("Increment object {:p}", object);
@@ -76,11 +120,14 @@ impl RCCollector {
         return None;
     }
 
+    /// The old roots are enqueued for a decrement.
     fn process_old_roots(&mut self) {
         debug!("Process old roots (size {})", self.old_root_buffer.len());
         self.decrement_buffer.extend(self.old_root_buffer.drain());
     }
 
+    /// The current roots are incremented (but never evacuated) and stored as
+    /// old roots.
     fn process_current_roots(&mut self, immix_space: &mut ImmixSpace,
                              roots: &[GCObjectRef]) {
         debug!("Process current roots (size {})", roots.len());
@@ -91,6 +138,7 @@ impl RCCollector {
         }
     }
 
+    /// Objects (roots) in the large object space are temporarily incremented.
     fn process_los_new_objects(&mut self, immix_space: &mut ImmixSpace,
                                new_objects: RingBuf<GCObjectRef>) {
         debug!("Process los new_objects (size {})", new_objects.len());
@@ -100,6 +148,8 @@ impl RCCollector {
         }
     }
 
+    /// For deferred coalesced reference counting every remembered object will
+    /// be processed to increment (and potentially evacuate) the members.
     fn process_mod_buffer(&mut self, immix_space: &mut ImmixSpace) {
         debug!("Process mod buffer (size {})", self.modified_buffer.len());
         while let Some(object) = self.modified_buffer.pop_front() {
@@ -125,6 +175,10 @@ impl RCCollector {
         }
     }
 
+    /// The enqueued decrements are applied.
+    ///
+    /// If the reference counter drops to zero the memory is reclaimed and the
+    /// members are enqueued for a decrement.
     fn process_decrement_buffer(&mut self, immix_space: &mut ImmixSpace,
                                 large_object_space: &mut LargeObjectSpace) {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
