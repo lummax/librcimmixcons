@@ -106,6 +106,8 @@ impl Collector {
 
         self.rc_collector.collect(collection_type, roots, immix_space, large_object_space);
 
+        large_object_space.proccess_free_buffer();
+
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
             for block in self.all_blocks.iter_mut() {

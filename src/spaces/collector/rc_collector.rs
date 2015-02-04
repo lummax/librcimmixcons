@@ -139,8 +139,7 @@ impl RCCollector {
                     immix_space.unset_gc_object(object);
                     valgrind_freelike!(object);
                 } else if large_object_space.is_gc_object(object) {
-                    large_object_space.free(object);
-                    large_object_space.unset_gc_object(object);
+                    large_object_space.enqueue_free(object);
                 }
             }
         }
