@@ -9,7 +9,14 @@ use spaces::CollectionType;
 
 pub struct ImmixCollector;
 
+/// The `ImmixCollector` performs a tracing collection.
+///
+/// It traverses the object graph, marks reachable objects, restores line
+/// counts and the object map. To complete the collection the `Collector`
+/// sweeps the line counters of the blocks and reclaims unused lines and
+/// blocks.
 impl ImmixCollector {
+    /// Perform the immix tracing collection.
     pub fn collect(collection_type: &CollectionType, roots: &[GCObjectRef],
                    immix_space: &mut ImmixSpace,
                    next_live_mark: bool) {
