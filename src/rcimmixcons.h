@@ -18,7 +18,7 @@ typedef struct {
 
 typedef struct {
     size_t object_size;
-    size_t num_variables;
+    size_t num_members;
 } GCRTTI;
 
 typedef struct {

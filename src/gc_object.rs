@@ -24,7 +24,7 @@ pub struct GCHeader {
 #[allow(missing_copy_implementations)]
 pub struct GCRTTI {
     object_size: libc::size_t,
-    variables: libc::size_t,
+    members: libc::size_t,
 }
 
 #[repr(C)]
@@ -38,10 +38,10 @@ pub struct GCObject {
 pub type GCObjectRef = *mut GCObject;
 
 impl GCRTTI {
-    pub fn new(object_size: usize, variables: usize) -> GCRTTI {
+    pub fn new(object_size: usize, members: usize) -> GCRTTI {
         return GCRTTI {
             object_size: object_size as libc::size_t,
-            variables: variables as libc::size_t,
+            members: members as libc::size_t,
         };
     }
 
@@ -49,8 +49,8 @@ impl GCRTTI {
         return self.object_size as usize;
     }
 
-    pub fn variables(&self) -> usize {
-        return self.variables as usize;
+    pub fn members(&self) -> usize {
+        return self.members as usize;
     }
 }
 
@@ -150,11 +150,11 @@ impl GCObject {
 
     pub fn children(&mut self) -> Vec<GCObjectRef> {
         let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
-        let variables = unsafe{ (*self.rtti).variables() };
+        let members = unsafe{ (*self.rtti).members() };
         debug!("Requested children for object: {:p} (rtti: {:p}, count: {})",
-               self, self.rtti, variables);
-        return (1..(variables + 1)).map(|i| unsafe{ *base.offset(i as isize) })
-                                   .filter(|o| !o.is_null())
-                                   .collect();
+               self, self.rtti, members);
+        return (1..(members + 1)).map(|i| unsafe{ *base.offset(i as isize) })
+                                 .filter(|o| !o.is_null())
+                                 .collect();
     }
 }
