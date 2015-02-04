@@ -113,12 +113,12 @@ impl RCCollector {
             for (num, child) in children.into_iter().enumerate() {
                 if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
                     debug!("Child {:p} is forwarded to {:p}", child, new_child);
-                    unsafe{ (*object).set_child(num, new_child); }
+                    unsafe{ (*object).set_member(num, new_child); }
                     self.increment(immix_space, child, false);
                 } else {
                     if let Some(new_child) = self.increment(immix_space,
                                                             child, true) {
-                        unsafe{ (*object).set_child(num, new_child); }
+                        unsafe{ (*object).set_member(num, new_child); }
                     }
                 }
             }

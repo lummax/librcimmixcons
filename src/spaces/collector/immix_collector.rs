@@ -29,12 +29,12 @@ impl ImmixCollector {
                 for (num, mut child) in children.into_iter().enumerate() {
                     if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
                         debug!("Child {:p} is forwarded to {:p}", child, new_child);
-                        unsafe{ (*object).set_child(num, new_child); }
+                        unsafe{ (*object).set_member(num, new_child); }
                     } else if !unsafe{ (*child).is_marked(next_live_mark) } {
                         if collection_type.is_evac() && immix_space.is_gc_object(child) {
                             if let Some(new_child) = immix_space.maybe_evacuate(child) {
                                 debug!("Evacuated child {:p} to {:p}", child, new_child);
-                                unsafe{ (*object).set_child(num, new_child); }
+                                unsafe{ (*object).set_member(num, new_child); }
                                 child = new_child;
                             }
                         }

@@ -140,11 +140,11 @@ impl GCObject {
         return false;
     }
 
-    pub fn set_child(&mut self, num: usize, child: GCObjectRef) {
+    pub fn set_member(&mut self, num: usize, member: GCObjectRef) {
         unsafe {
             let base: *mut GCObjectRef = mem::transmute(&self.rtti);
             let address = base.offset((num + 1) as isize);
-            *address = child;
+            *address = member;
         }
     }
 
