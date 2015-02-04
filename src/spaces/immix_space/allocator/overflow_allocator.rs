@@ -12,13 +12,22 @@ use std::cell::RefCell;
 
 use constants::{BLOCK_SIZE, LINE_SIZE};
 
+/// The `OverflowAllocator` is used to allocate *medium* sized objects
+/// (objects of at least `MEDIUM_OBJECT` bytes size) within the immix space to
+/// limit fragmentation in the `NormalAllocator`.
 pub struct OverflowAllocator {
+    /// The global `BlockAllocator` to get new blocks from.
     block_allocator: Rc<RefCell<BlockAllocator>>,
+
+    /// The exhausted blocks.
     unavailable_blocks: RingBuf<*mut BlockInfo>,
+
+    /// The current block to allocate from.
     current_block: Option<BlockTuple>,
 }
 
 impl OverflowAllocator {
+    /// Create a new `OverflowAllocator` backed by the given `BlockAllocator`.
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> OverflowAllocator {
         return OverflowAllocator {
             block_allocator: block_allocator,
