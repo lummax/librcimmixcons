@@ -70,8 +70,7 @@ impl Spaces {
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
         return if size < LARGE_OBJECT { self.immix_space.allocate(rtti) }
-               else { self.large_object_space.allocate(rtti) }
-               .or_else(|| { self.collect(true, true); self.allocate(rtti) });
+               else { self.large_object_space.allocate(rtti) };
     }
 
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {

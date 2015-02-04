@@ -31,7 +31,9 @@ impl RCImmixCons {
     }
 
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
-        return self.spaces.allocate(rtti);
+        return self.spaces.allocate(rtti)
+                   .or_else(|| { self.collect(true, true);
+                                 self.spaces.allocate(rtti) });
     }
 
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
