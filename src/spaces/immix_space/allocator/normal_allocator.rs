@@ -12,14 +12,26 @@ use std::cell::RefCell;
 
 use constants::{BLOCK_SIZE, LINE_SIZE};
 
+/// The `NormalAllocator` is the standard allocator to allocate objects within
+/// the immix space.
+///
+/// Objects smaller than `MEDIUM_OBJECT` bytes are
 pub struct NormalAllocator {
+    /// The global `BlockAllocator` to get new blocks from.
     block_allocator: Rc<RefCell<BlockAllocator>>,
+
+    /// The exhausted blocks.
     unavailable_blocks: RingBuf<*mut BlockInfo>,
+
+    /// The blocks with holes to recycle before requesting new blocks..
     recyclable_blocks: RingBuf<*mut BlockInfo>,
+
+    /// The current block to allocate from.
     current_block: Option<BlockTuple>,
 }
 
 impl NormalAllocator {
+    /// Create a new `NormalAllocator` backed by the given `BlockAllocator`.
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> NormalAllocator {
         return NormalAllocator {
             block_allocator: block_allocator,
@@ -29,6 +41,7 @@ impl NormalAllocator {
         };
     }
 
+    /// Set the recyclable blocks.
     pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
         self.recyclable_blocks = blocks;
     }
