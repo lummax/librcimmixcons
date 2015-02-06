@@ -130,7 +130,7 @@ impl RCCollector {
         debug!("Process dec buffer (size {})", self.decrement_buffer.len());
         while let Some(object) =  self.decrement_buffer.pop_front() {
             debug!("Process object {:p} in dec buffer", object);
-            if unsafe{ (*object).decrement() } {
+            if unsafe{ (*object).decrement() && !(*object).is_pinned() }  {
                 for child in unsafe{ (*object).children() }.into_iter() {
                     self.decrement(child);
                 }

@@ -79,34 +79,31 @@ impl Spaces {
 
         let roots = stack::enumerate_roots(self);
         self.collector.extend_all_blocks(self.immix_space.get_all_blocks());
+
+        for root in roots.iter().map(|o| *o) {
+            unsafe{ (*root).set_pinned(true); }
+        }
+
         let collection_type = self.collector.prepare_collection(evacuation,
                                 cycle_collect,
                                 self.immix_space.available_blocks(),
                                 self.immix_space.total_blocks(),
                                 self.immix_space.evac_headroom());
-
-        if collection_type.is_immix() {
-            for root in roots.iter().map(|o| *o) {
-                unsafe{ (*root).set_pinned(true); }
-            }
-        }
-
         self.collector.collect(&collection_type, roots.as_slice(),
                                &mut self.immix_space,
                                &mut self.large_object_space,
                                !self.current_live_mark);
-
         self.collector.complete_collection(&collection_type, &mut self.immix_space,
                                            &mut self.large_object_space);
 
+        for root in roots.iter() {
+            unsafe{ (**root).set_pinned(false); }
+        }
         if collection_type.is_immix() {
             self.current_live_mark = !self.current_live_mark;
             self.immix_space.set_current_live_mark(self.current_live_mark);
             self.large_object_space.set_current_live_mark(self.current_live_mark);
 
-            for root in roots.iter() {
-                unsafe{ (**root).set_pinned(false); }
-            }
         }
         valgrind_assert_no_leaks!();
     }
