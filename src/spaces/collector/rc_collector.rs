@@ -41,7 +41,7 @@ impl RCCollector {
     pub fn write_barrier(&mut self, object: GCObjectRef) {
         debug!("Write barrier on object {:p}", object);
         self.modified(object);
-        for child in unsafe{ (*object).children() }.into_iter() {
+        for child in unsafe{ (*object).children() } {
             self.decrement(child);
         }
         unsafe{ (*object).set_logged(true); }
@@ -94,7 +94,7 @@ impl RCCollector {
     fn process_los_new_objects(&mut self, immix_space: &mut ImmixSpace,
                                new_objects: RingBuf<GCObjectRef>) {
         debug!("Process los new_objects (size {})", new_objects.len());
-        for object in new_objects.into_iter() {
+        for object in new_objects {
             self.increment(immix_space, object, false);
             self.decrement(object);
         }
@@ -131,7 +131,7 @@ impl RCCollector {
         while let Some(object) =  self.decrement_buffer.pop_front() {
             debug!("Process object {:p} in dec buffer", object);
             if unsafe{ (*object).decrement() && !(*object).is_pinned() }  {
-                for child in unsafe{ (*object).children() }.into_iter() {
+                for child in unsafe{ (*object).children() } {
                     self.decrement(child);
                 }
                 if immix_space.is_gc_object(object) {

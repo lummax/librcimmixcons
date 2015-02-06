@@ -72,7 +72,7 @@ impl LargeObjectSpace  {
         debug!("Sweep LOS with next_live_mark={}", next_live_mark);
         let (marked, unmarked) : (Vec<_>, Vec<_>) = self.objects.drain().partition(is_marked);
         self.objects = marked.into_iter().collect();
-        for object in unmarked.into_iter() {
+        for object in unmarked {
             debug!("Free object {:p} in sweep", object);
             unsafe{ libc::free(object as *mut libc::c_void); }
         }
