@@ -90,27 +90,32 @@ impl RCImmixCons {
 }
 
 #[no_mangle]
+#[doc(hidden)]
 pub extern fn rcx_create() -> *mut RCImmixCons {
     return unsafe { std::boxed::into_raw(Box::new(RCImmixCons::new())) };
 }
 
 #[no_mangle]
+#[doc(hidden)]
 pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
     -> GCObjectRef {
     unsafe { return (*this).allocate(rtti).unwrap_or(ptr::null_mut()); }
 }
 
 #[no_mangle]
+#[doc(hidden)]
 pub extern fn rcx_collect(this: *mut RCImmixCons, evacuation: bool, cycle_collect: bool) {
     unsafe { (*this).collect(evacuation, cycle_collect) };
 }
 
 #[no_mangle]
+#[doc(hidden)]
 pub extern fn rcx_write_barrier(this: *mut RCImmixCons, object: GCObjectRef) {
     unsafe { (*this).write_barrier(object) };
 }
 
 #[no_mangle]
+#[doc(hidden)]
 pub extern fn rcx_destroy(this: *mut RCImmixCons) {
     let _to_be_dropped = unsafe{ Box::from_raw(this) };
 }
