@@ -9,6 +9,28 @@
 #![feature(collections)]
 #![feature(link_llvm_intrinsics)]
 
+//! This is an implementation of the `RCImmixCons` garbage collector.
+//!
+//! A conservative reference counting garbage collector with the immix heap
+//! partition schema. For details please refer to:
+//!
+//! - S. M. S. Blackburn and K. K. S. McKinley. Immix: a mark-region garbage
+//!   collector with space efficiency, fast collection, and mutator performance.
+//!   ACM SIGPLAN Notices, 43(6):22, May 2008.
+//! - R. Shahriyar, S. M. Blackburn, and D. Frampton. Down for the count?  Getting
+//!   reference counting back in the ring. ACM SIGPLAN Notices, 47(11):73, Jan.
+//!   2013.
+//! - R. Shahriyar, S. M. Blackburn, and K. S. McKinley. Fast conservative garbage
+//!   collection. In Proceedings of the 2014 ACM International Conference on
+//!   Object Oriented Programming Systems Languages & Applications - OOPSLA ’14,
+//!   pages 121-139, New York, New York, USA, Oct. 2014. ACM Press.
+//! - R. Shahriyar, S. M. Blackburn, X. Yang, and K. S. McKinley. Taking off the
+//!   gloves with reference counting Immix. ACM SIGPLAN Notices, 48(10):93-110,
+//!   Nov. 2013.
+//!
+//! To use this garbage collector your objects must be structs derived from
+//! `GCObject`. Allocation and collection is done using `RCImmixCons`.
+
 extern crate libc;
 use std::ptr;
 
@@ -21,9 +43,6 @@ mod spaces;
 mod stack;
 
 /// The `RCImmixCons` garbage collector.
-///
-/// This is the conservative reference counting garbage collector with the
-/// immix heap partition schema.
 ///
 /// The `allocate()` function will return a pointer to a `GCObject`. Please
 /// see the documentation of `GCHeader`, `GCRTTI` and `GCObject` for details.
