@@ -4,12 +4,13 @@
 #![feature(libc)]
 #![feature(os)]
 #![feature(core)]
+#![feature(alloc)]
 #![feature(std_misc)]
 #![feature(collections)]
 #![feature(link_llvm_intrinsics)]
 
 extern crate libc;
-use std::{mem, ptr};
+use std::ptr;
 
 pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
 
@@ -71,7 +72,7 @@ impl RCImmixCons {
 
 #[no_mangle]
 pub extern fn rcx_create() -> *mut RCImmixCons {
-    return unsafe { mem::transmute(Box::new(RCImmixCons::new())) };
+    return unsafe { std::boxed::into_raw(Box::new(RCImmixCons::new())) };
 }
 
 #[no_mangle]
@@ -92,5 +93,5 @@ pub extern fn rcx_write_barrier(this: *mut RCImmixCons, object: GCObjectRef) {
 
 #[no_mangle]
 pub extern fn rcx_destroy(this: *mut RCImmixCons) {
-    let _to_be_dropped: Box<RCImmixCons> = unsafe{ mem::transmute(this) };
+    let _to_be_dropped = unsafe{ Box::from_raw(this) };
 }
