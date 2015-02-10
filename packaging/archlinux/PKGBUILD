@@ -1,0 +1,29 @@
+pkgname=librcimmixcons-git
+pkgver=0.0.1
+pkgrel=0
+pkgdesc="A RCImmixCons implementation in Rust"
+arch=('x86_64')
+url="https://github.com/lummax/librcimmixcons"
+license=('MIT')
+depends=('gcc-libs')
+makedepends=('rust-nightly-bin')
+
+prepare() {
+    rm -f ${pkgname}-${pkgver}
+    ln -s ../../../ ${pkgname}-${pkgver}
+}
+
+build() {
+    cd ${pkgname}-${pkgver}
+    cargo build --release
+}
+
+package() {
+    mkdir -p ${pkgdir}/usr/lib/
+    install -m 0755 \
+        "${pkgname}-${pkgver}"/target/release/librcimmixcons-*.so \
+        "${pkgdir}/usr/lib/librcimmixcons.so.${pkgver}"
+    ldconfig -n "${pkgdir}/usr/lib/"
+    cd "$pkgdir"/usr/lib
+    ln -s "librcimmixcons.so.${pkgver}" librcimmixcons.so
+}

@@ -2,3 +2,6 @@
 /doc
 /Cargo.lock
 *.swp
+/packaging/archlinux/*
+!/packaging/archlinux/PKGBUILD
+
