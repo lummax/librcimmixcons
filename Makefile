@@ -21,6 +21,9 @@ install:
 	ldconfig -n "${PREFIX}/lib/"
 	ln -s "librcimmixcons.so.${PKGVER}" "${PREFIX}/lib/librcimmixcons.so"
 
+check-install:
+	LIBRARY_NAME=rcimmixcons ./tests/run_integration_tests.sh
+
 %:
 	$(CARGO) $* $(CARGO_OPTS)
 
