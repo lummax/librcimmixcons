@@ -70,7 +70,7 @@ typedef struct {
 typedef struct {} RCImmixCons;
 
 /// Create a new `RCImmixCons`.
-RCImmixCons* rcx_create();
+RCImmixCons* rcx_create(void);
 
 /// Allocate a new object described by the `rtti` or returns `NULL`.
 ///
