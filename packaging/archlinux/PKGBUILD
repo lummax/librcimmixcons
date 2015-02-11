@@ -15,15 +15,10 @@ prepare() {
 
 build() {
     cd ${pkgname}-${pkgver}
-    cargo build --release
+	make all CARGO_OPTS=--release
 }
 
 package() {
-    mkdir -p ${pkgdir}/usr/lib/
-    install -m 0755 \
-        "${pkgname}-${pkgver}"/target/release/librcimmixcons-*.so \
-        "${pkgdir}/usr/lib/librcimmixcons.so.${pkgver}"
-    ldconfig -n "${pkgdir}/usr/lib/"
-    cd "$pkgdir"/usr/lib
-    ln -s "librcimmixcons.so.${pkgver}" librcimmixcons.so
+    cd ${pkgname}-${pkgver}
+	make install PKGVER=${pkgver} PREFIX=${pkgdir}/usr/
 }
