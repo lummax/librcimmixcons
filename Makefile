@@ -1,5 +1,6 @@
 CARGO = cargo
 CARGO_OPTS =
+PREFIX = /usr
 PKGVER = 0
 
 all: build
@@ -18,8 +19,7 @@ install:
 		target/release/librcimmixcons-*.so \
 		"${PREFIX}/lib/librcimmixcons.so.${PKGVER}"
 	ldconfig -n "${PREFIX}/lib/"
-	cd "${PREFIX}/lib"
-	ln -s "librcimmixcons.so.${PKGVER}" librcimmixcons.so
+	ln -s "librcimmixcons.so.${PKGVER}" "${PREFIX}/lib/librcimmixcons.so"
 
 %:
 	$(CARGO) $* $(CARGO_OPTS)
