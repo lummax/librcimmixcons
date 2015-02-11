@@ -2,12 +2,7 @@ language: rust
 
 install:
     - sudo apt-get update -qq
-    - sudo apt-get -qq install valgrind
+    - sudo apt-get -qq install valgrind clang
 
 script:
-    - cargo build --verbose
-    - cargo test --verbose
-    - ./tests/run_integration_tests.sh
-    - cargo build --verbose --features "valgrind"
-    - cargo test --verbose --features "valgrind"
-    - ./tests/run_integration_tests.sh
+    - make check CARGO_OPTS=--verbose
