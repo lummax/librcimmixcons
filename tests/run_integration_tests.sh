@@ -1,26 +1,34 @@
 #!/bin/bash
 
-library=`basename target/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
+if [ -z "$LIBRARY_NAME" ]; then
+	LIBRARY_NAME=`basename target/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
+	CLANG_OPTS="-L target"
+	export LD_LIBRARY_PATH="target"
+fi
 
 function run_test {
     local file=$1;
-    clang "tests/$file.c" -L target -l "$library" -o "target/$file" || return 1;
-    LD_LIBRARY_PATH=target "./target/$file" || return 2;
-    LD_LIBRARY_PATH=target valgrind "./target/$file" || return 3;
+    clang "tests/$file.c" ${CLANG_OPTS} -l "$LIBRARY_NAME" -o "target/$file" || return 1;
+    "./target/$file" || return 2;
+    valgrind "./target/$file" || return 3;
     return 0;
 }
 
-code=0;
-for path in tests/$1*.c; do
-    file=`basename "$path" | sed 's/\.c//'`;
-    echo -n "Running test $file.."
-    output=$(run_test $file 2>&1);
-    if [ $? -ne 0 ]; then
-        echo "fail";
-        echo -e "\n$output\n" | tee "target/log_$file";
-        code=1;
-    else
-        echo "ok";
-    fi;
-done;
-exit $code;
+function main {
+	local code=0;
+	for path in tests/$1*.c; do
+		local file=`basename "$path" | sed 's/\.c//'`;
+		echo -n "Running test $file.."
+		output=$(run_test $file 2>&1);
+		if [ $? -ne 0 ]; then
+			echo "fail";
+			echo -e "\n$output\n" | tee "target/log_$file";
+			code=1;
+		else
+			echo "ok";
+		fi;
+	done;
+	exit $code;
+}
+
+main
