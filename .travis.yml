@@ -6,3 +6,6 @@ install:
 
 script:
     - make check CARGO_OPTS=--verbose
+    - make all CARGO_OPTS=--release
+    - sudo make install
+    - make check-install
