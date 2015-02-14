@@ -8,7 +8,7 @@ fi
 
 function run_test {
     local file=$1;
-    clang "tests/$file.c" ${CLANG_OPTS} -l "$LIBRARY_NAME" -o "target/$file" || return 1;
+    clang -g -O0 "tests/$file.c" ${CLANG_OPTS} -l "$LIBRARY_NAME" -o "target/$file" || return 1;
     "./target/$file" || return 2;
     valgrind "./target/$file" || return 3;
     return 0;
