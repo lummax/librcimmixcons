@@ -7,6 +7,7 @@ url="https://github.com/lummax/librcimmixcons"
 license=('MIT')
 depends=('gcc-libs')
 makedepends=('rust-nightly-bin')
+options=(!strip)
 
 prepare() {
     rm -f ${pkgname}-${pkgver}
