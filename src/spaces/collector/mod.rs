@@ -13,8 +13,8 @@ use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{RingBuf, HashSet, VecMap};
 
-use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, EVAC_HEADROOM,
-                CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
+use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, USE_EVACUATION,
+                EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
@@ -80,8 +80,8 @@ impl Collector {
         let available_evac_blocks = available_blocks + evac_headroom;
         if evacuation || available_evac_blocks < evac_threshhold {
             let hole_threshhold = self.establish_hole_threshhold(evac_headroom);
-            perform_evac = hole_threshhold > 0
-                && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
+            perform_evac = USE_EVACUATION && hole_threshhold > 0
+                                          && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
             if perform_evac {
                 debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
                        hole_threshhold, evac_headroom);
@@ -199,7 +199,8 @@ impl Collector {
 
         // XXX We should not use a constant here, but something that
         // XXX changes dynamically (see rcimmix: MAX heuristic).
-        let evac_headroom = EVAC_HEADROOM - immix_space.evac_headroom();
+        let evac_headroom = if USE_EVACUATION {
+            EVAC_HEADROOM - immix_space.evac_headroom() } else { 0 };
         immix_space.extend_evac_headroom(free_blocks.iter().take(evac_headroom)
                                                     .map(|&b| b).collect());
         immix_space.return_blocks(free_blocks.iter().skip(evac_headroom)
