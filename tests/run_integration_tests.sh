@@ -31,4 +31,4 @@ function main {
 	exit $code;
 }
 
-main
+main $@;
