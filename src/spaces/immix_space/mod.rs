@@ -107,6 +107,11 @@ impl ImmixSpace {
         return false;
     }
 
+    /// Return if the object an the address is within the immix space.
+    pub fn is_in_space(&self, object: GCObjectRef) -> bool {
+        return self.block_allocator.borrow().is_in_space(object);
+    }
+
     /// Return the total number of possible blocks.
     pub fn total_blocks(&self) -> usize {
         return self.block_allocator.borrow().total_blocks();

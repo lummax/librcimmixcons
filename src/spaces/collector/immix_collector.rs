@@ -27,7 +27,7 @@ impl ImmixCollector {
         while let Some(object) =  object_queue.pop_front() {
             debug!("Process object {:p} in Immix closure", object);
             if !unsafe { (*object).set_marked(next_live_mark) } {
-                if immix_space.is_gc_object(object) {
+                if immix_space.is_in_space(object) {
                     immix_space.set_gc_object(object);
                     immix_space.increment_lines(object);
                 }

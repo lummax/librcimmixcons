@@ -155,7 +155,7 @@ impl RCCollector {
         while let Some(object) = self.modified_buffer.pop_front() {
             debug!("Process object {:p} in mod buffer", object);
             unsafe { (*object).set_logged(false); }
-            if immix_space.is_gc_object(object) {
+            if immix_space.is_in_space(object) {
                 immix_space.set_gc_object(object);
                 immix_space.increment_lines(object);
             }
