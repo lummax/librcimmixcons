@@ -13,7 +13,7 @@ use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{RingBuf, HashSet, VecMap};
 
-use constants::{NUM_LINES_PER_BLOCK, EVAC_HEADROOM,
+use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, EVAC_HEADROOM,
                 CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
@@ -55,7 +55,9 @@ impl Collector {
 
     /// A write barrier for the given `object` used with the `RCCollector`.
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        self.rc_collector.write_barrier(object);
+        if USE_RC_COLLECTOR {
+            self.rc_collector.write_barrier(object);
+        }
     }
 
     /// Store the given blocks into the buffer for use during the collection.
@@ -94,11 +96,13 @@ impl Collector {
             available_blocks < cycle_theshold
         } else { true };
 
-        return match (perform_evac, perform_cycle_collect) {
-            (false, false) => CollectionType::RCCollection,
-            (true, false) => CollectionType::RCEvacCollection,
-            (false, true) => CollectionType::ImmixCollection,
-            (true, true) => CollectionType::ImmixEvacCollection,
+        return match (USE_RC_COLLECTOR, perform_evac, perform_cycle_collect) {
+            (true, false, false) => CollectionType::RCCollection,
+            (true, true, false) => CollectionType::RCEvacCollection,
+            (true, false, true) => CollectionType::ImmixCollection,
+            (true, true, true) => CollectionType::ImmixEvacCollection,
+            (false, false, _) => CollectionType::ImmixCollection,
+            (false, true, _) => CollectionType::ImmixEvacCollection,
         }
     }
 
@@ -109,7 +113,10 @@ impl Collector {
                    roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
                    large_object_space: &mut LargeObjectSpace, next_live_mark: bool) {
 
-        self.perform_rc_collection(collection_type, roots, immix_space, large_object_space);
+        if USE_RC_COLLECTOR {
+            self.perform_rc_collection(collection_type, roots, immix_space,
+                                       large_object_space);
+        }
 
         if collection_type.is_immix() {
             self.perform_immix_collection(collection_type, roots,

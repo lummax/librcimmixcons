@@ -23,6 +23,10 @@ pub const MEDIUM_OBJECT: usize = LINE_SIZE;
 /// Objects larger than LARGE_OBJECT are allocated using the `LargeObjectSpace`.
 pub const LARGE_OBJECT: usize = 8 * 1024;
 
+/// Whether the reference counting collector should be used. Otherwise only
+/// the tracing immix collector will be utilized.
+pub const USE_RC_COLLECTOR: bool = true;
+
 /// Ratio when to trigger cycle collection.
 pub const CICLE_TRIGGER_THRESHHOLD: f32 = 0.01;
 
