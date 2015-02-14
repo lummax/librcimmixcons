@@ -86,6 +86,13 @@ GCObject* rcx_allocate(RCImmixCons* collector, GCRTTI* rtti);
 /// the immix tracing collector will be used.
 void rcx_collect(RCImmixCons* collector, uint8_t evacuation, uint8_t cycle_collect);
 
+/// Set an address to an object reference as static root.
+///
+/// Use this to mark global/static variables as roots. This is needed, if  the
+/// pointer to a garbage collected object does not reside on the stack or in
+/// any register.
+void rcx_set_static_root(RCImmixCons* collector, void* address);
+
 /// A write barrier for the given `object`.
 ///
 /// Call this function before modifying the members of this object!

@@ -60,6 +60,9 @@ pub struct Spaces {
     /// The large object space for objects greater than `LARGE_OBJECT`.
     large_object_space: LargeObjectSpace,
 
+    /// The static roots added via `set_static_root()`.
+    static_roots: Vec<*const GCObjectRef>,
+
     /// The collectors.
     collector: Collector,
 
@@ -79,15 +82,29 @@ impl Spaces {
         return Spaces {
             immix_space: ImmixSpace::new(),
             large_object_space: LargeObjectSpace::new(),
+            static_roots: Vec::new(),
             collector: Collector::new(),
             current_live_mark: false,
         };
+    }
+
+    pub fn static_roots(&self) -> &[*const GCObjectRef] {
+        debug!("There are {} possible static roots: {:?}",
+               self.static_roots.len(),
+               self.static_roots.iter().map(|o| unsafe{ **o }).collect::<Vec<GCObjectRef>>());
+        return self.static_roots.as_slice();
     }
 
     /// Return if the given address is valid in any of the managed spaces.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         return self.immix_space.is_gc_object(object)
                || self.large_object_space.is_gc_object(object);
+    }
+
+    /// Set an address of an object reference as static root.
+    pub fn set_static_root(&mut self, address: *const GCObjectRef) {
+        debug!("Set address {:p} as static root", address);
+        self.static_roots.push(address);
     }
 
     /// A write barrier for the given `object` used with the `RCCollector`.

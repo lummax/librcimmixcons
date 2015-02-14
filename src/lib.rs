@@ -81,6 +81,15 @@ impl RCImmixCons {
         return self.spaces.collect(evacuation, cycle_collect);
     }
 
+    /// Set an address to an object reference as static root.
+    ///
+    /// Use this to mark global/static variables as roots. This is needed, if
+    /// the pointer to a garbage collected object does not reside on the stack
+    /// or in any register.
+    pub fn set_static_root(&mut self, address: *const GCObjectRef) {
+        self.spaces.set_static_root(address);
+    }
+
     /// A write barrier for the given `object`.
     ///
     /// Call this function before modifying the members of this object!
@@ -106,6 +115,12 @@ pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
 #[doc(hidden)]
 pub extern fn rcx_collect(this: *mut RCImmixCons, evacuation: bool, cycle_collect: bool) {
     unsafe { (*this).collect(evacuation, cycle_collect) };
+}
+
+#[no_mangle]
+#[doc(hidden)]
+pub extern fn rcx_set_static_root(this: *mut RCImmixCons, address: *const GCObjectRef) {
+    unsafe { (*this).set_static_root(address) };
 }
 
 #[no_mangle]

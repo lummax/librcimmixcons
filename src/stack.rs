@@ -112,6 +112,7 @@ pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
         debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
         return (0..stack_size)
             .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
+            .chain(spaces.static_roots().iter().map(|o| unsafe{ **o }))
             .filter(|o| !o.is_null() && spaces.is_gc_object(*o))
             .collect::<HashSet<GCObjectRef>>()
             .into_iter().collect();

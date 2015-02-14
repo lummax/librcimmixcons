@@ -36,11 +36,11 @@ What somewhat works (please refer to the integration tests in `tests/`):
 - Immix backup tracing (cycle) collection
 - Opportunistic proactive and reactive defragmentation
 - A simple free-list large-object-space with RC and MS collection
+- Explicit adding of global (static) roots by the mutator program
 
 And some features that would be nice:
 
 - Pinning of objects by the mutator program
-- Explicit adding of global (static) roots by the mutator program
 - Explicit setting kind of collection by the mutator program
 - BlockInfo.{line_counter, object_map} as embedded data structures
 
