@@ -145,10 +145,13 @@ impl ImmixSpace {
     /// Get all block managed by all allocators, draining any local
     /// collections.
     pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
-        return self.allocator.get_all_blocks().drain()
-                   .chain(self.overflow_allocator.get_all_blocks().drain())
-                   .chain(self.evac_allocator.get_all_blocks().drain())
-                   .collect();
+        let mut normal_blocks = self.allocator.get_all_blocks();
+        let mut overflow_blocks = self.overflow_allocator.get_all_blocks();
+        let mut evac_blocks = self.evac_allocator.get_all_blocks();
+        return normal_blocks.drain()
+                            .chain(overflow_blocks.drain())
+                            .chain(evac_blocks.drain())
+                            .collect();
     }
 
     /// Allocate an object of `size` bytes or return `None` if the allocation
