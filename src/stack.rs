@@ -12,33 +12,6 @@ use spaces::Spaces;
 /// Abstractions over the stack to scan the stack and the registers for
 /// garbage collection roots.
 
-mod setjmp {
-    extern crate libc;
-
-    pub use self::arch::jmp_buf;
-
-    extern {
-        fn _setjmp(env: *mut jmp_buf) -> libc::c_int;
-    }
-
-    pub unsafe fn setjmp(env: *mut jmp_buf) -> libc::c_int {
-        return _setjmp(env);
-    }
-
-    #[cfg(target_arch = "x86_64")]
-    mod arch {
-        #[repr(C)]
-        pub struct jmp_buf {
-            _data: [u64; 25]
-        }
-    }
-
-    #[cfg(target_arch = "x86")]
-    mod arch {
-        pub type jmp_buf = [[u32; 39]; 1];
-    }
-}
-
 mod pthread {
     extern crate libc;
 
@@ -87,31 +60,35 @@ fn get_stack_bottom() -> Option<*mut u8> {
     }
 }
 
-/// Save the content of the registers on the stack.
-#[inline(always)]
-#[cfg(all(target_os = "linux", any(target_arch = "x86", target_arch = "x86_64")))]
-fn save_registers() -> setjmp::jmp_buf {
-    unsafe {
-        let mut jmp_buf: setjmp::jmp_buf = mem::zeroed();
-        setjmp::setjmp(&mut jmp_buf);
-        return jmp_buf;
-    }
+/// Get the contents of the registers
+#[allow(unused_assignments)]
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+fn get_registers() -> Vec<GCObjectRef> {
+    let mut rbx = ptr::null_mut(); unsafe{ asm!("movq %rbx, %rax": "=rax" (rbx));}
+    let mut rsp = ptr::null_mut(); unsafe{ asm!("movq %rsp, %rax": "=rax" (rsp));}
+    let mut rbp = ptr::null_mut(); unsafe{ asm!("movq %rbp, %rax": "=rax" (rbp));}
+    let mut r12 = ptr::null_mut(); unsafe{ asm!("movq %r12, %rax": "=rax" (r12));}
+    let mut r13 = ptr::null_mut(); unsafe{ asm!("movq %r13, %rax": "=rax" (r13));}
+    let mut r14 = ptr::null_mut(); unsafe{ asm!("movq %r14, %rax": "=rax" (r14));}
+    let mut r15 = ptr::null_mut(); unsafe{ asm!("movq %r15, %rax": "=rax" (r15));}
+    let registers = vec![rbx, rsp, rbp, r12, r13, r14, r15];
+    debug!("Register values: {:?}", registers);
+    return registers;
 }
 
 /// Scan the stack and registers for garbage collection roots.
 ///
-/// This will save the registers on the current threads stack and validate all
-/// non-null values on the stack as possible garbage collection roots using
-/// the supplied `Spaces` (`Spaces.is_gc_object()`)
-#[allow(unused_variables)]
+/// This will retrieve the callee save registers and validate all non-null
+/// values on the stack as possible garbage collection roots using the
+/// supplied `Spaces` (`Spaces.is_gc_object()`)
 pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
-    let jmp_buf = save_registers();
     if let Some(bottom) = get_stack_bottom() {
         let top = get_stack_top();
         let stack_size = (bottom as usize) - (top as usize) - 8;
         debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
         return (0..stack_size)
             .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
+            .chain(get_registers().into_iter())
             .chain(spaces.static_roots().iter().map(|o| unsafe{ **o }))
             .filter(|o| !o.is_null() && spaces.is_gc_object(*o))
             .collect::<HashSet<GCObjectRef>>()

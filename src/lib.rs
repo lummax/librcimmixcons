@@ -2,6 +2,7 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 #![feature(libc)]
+#![feature(asm)]
 #![feature(os)]
 #![feature(core)]
 #![feature(alloc)]
