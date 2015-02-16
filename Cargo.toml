@@ -3,6 +3,9 @@ name = "rcimmixcons"
 version = "0.0.1"
 authors = ["lummax <luogpg@googlemail.com>"]
 
+[profile.release]
+opt-level = 1
+
 [features]
 valgrind = ["vgrs"]
 
