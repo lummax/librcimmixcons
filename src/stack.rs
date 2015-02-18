@@ -61,9 +61,10 @@ fn get_stack_bottom() -> Option<*mut u8> {
 }
 
 /// Get the contents of the registers
+#[inline(always)]
 #[allow(unused_assignments)]
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-fn get_registers() -> Vec<GCObjectRef> {
+pub fn get_registers() -> Vec<GCObjectRef> {
     let mut rbx = ptr::null_mut(); unsafe{ asm!("movq %rbx, %rax": "=rax" (rbx));}
     let mut rsp = ptr::null_mut(); unsafe{ asm!("movq %rsp, %rax": "=rax" (rsp));}
     let mut rbp = ptr::null_mut(); unsafe{ asm!("movq %rbp, %rax": "=rax" (rbp));}
@@ -78,9 +79,8 @@ fn get_registers() -> Vec<GCObjectRef> {
 
 /// Scan the stack and registers for garbage collection roots.
 ///
-/// This will retrieve the callee save registers and validate all non-null
-/// values on the stack as possible garbage collection roots using the
-/// supplied `Spaces` (`Spaces.is_gc_object()`)
+/// This will validate all non-null values on the stack as possible garbage
+/// collection roots using the supplied `Spaces` (`Spaces.is_gc_object()`)
 pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
     if let Some(bottom) = get_stack_bottom() {
         let top = get_stack_top();
@@ -88,7 +88,6 @@ pub fn enumerate_roots(spaces: &mut Spaces) -> Vec<GCObjectRef> {
         debug!("Scanning stack of size {} ({:p} - {:p})", stack_size, top, bottom);
         return (0..stack_size)
             .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
-            .chain(get_registers().into_iter())
             .chain(spaces.static_roots().iter().map(|o| unsafe{ **o }))
             .filter(|o| !o.is_null() && spaces.is_gc_object(*o))
             .collect::<HashSet<GCObjectRef>>()

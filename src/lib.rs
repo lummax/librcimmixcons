@@ -78,7 +78,11 @@ impl RCImmixCons {
     /// This will always run the referece counting collector. If `evacuation`
     /// is set the collectors will try to evacuate. If `cycle_collect` is set
     /// the immix tracing collector will be used.
+    #[allow(unused_variables)]
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
+        // Calling this function befor **ANYTHING** is important to save the
+        // callee save registers on the stack.
+        let registers = stack::get_registers();
         return self.spaces.collect(evacuation, cycle_collect);
     }
 
