@@ -1,11 +1,64 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::{HashSet, VecMap};
+use std::collections::{BitvSet, HashSet, VecMap};
 use std::num::Int;
 
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 use gc_object::GCObjectRef;
+
+
+/// A per block object map.
+struct ObjectMap {
+    set: BitvSet,
+}
+
+impl ObjectMap {
+    /// Create a new `ObjectMap`.
+    fn new() -> ObjectMap {
+        return ObjectMap {
+            set: BitvSet::with_capacity(BLOCK_SIZE),
+        };
+    }
+
+    /// Reduce the objects address to an offset within the block.
+    fn index(object: GCObjectRef) -> usize {
+        return (object as usize) % BLOCK_SIZE;
+    }
+
+    /// Set the address as a valid object.
+    fn set_object(&mut self, object: GCObjectRef) {
+        self.set.insert(ObjectMap::index(object));
+    }
+
+    /// Unset the address as a valid object.
+    fn unset_object(&mut self, object: GCObjectRef) {
+        self.set.remove(&ObjectMap::index(object));
+    }
+
+    /// Return `true` is the address is a valid object.
+    fn is_object(&self, object: GCObjectRef) -> bool {
+        return self.set.contains(&ObjectMap::index(object));
+    }
+
+    /// Update this `ObjectMap` with the difference of this `ObjectMap` and
+    /// the other.
+    fn difference(&mut self, other: &ObjectMap) {
+        self.set.difference_with(&other.set);
+    }
+
+    /// Clear all entries.
+    fn clear(&mut self) {
+        self.set.clear();
+    }
+
+    /// Retrieve the values as a `HashSet`.
+    fn as_hashset(&self, base: *mut u8) -> HashSet<GCObjectRef> {
+        return self.set.iter()
+                       .map(|i| unsafe{ base.offset(i as isize) as GCObjectRef})
+                       .collect();
+    }
+}
 
 /// A `BlockInfo` contains management information for the immix garbage
 /// collectors.
@@ -18,11 +71,11 @@ pub struct BlockInfo {
 
     /// A set of addresses that are valid objects. Needed for the conservative
     /// part.
-    object_map: HashSet<GCObjectRef>,
+    object_map: ObjectMap,
 
     /// Objects in this block that were never touched by the garbage
     /// collector.
-    new_objects: HashSet<GCObjectRef>,
+    new_objects: ObjectMap,
 
     /// If this block is actually in use.
     allocated: bool,
@@ -43,8 +96,8 @@ impl BlockInfo {
         }
         return BlockInfo {
             line_counter: line_counter,
-            object_map: HashSet::new(),
-            new_objects: HashSet::new(),
+            object_map: ObjectMap::new(),
+            new_objects: ObjectMap::new(),
             allocated: false,
             hole_count: 0,
             evacuation_candidate: false,
@@ -61,7 +114,7 @@ impl BlockInfo {
         debug_assert!(self.is_in_block(object),
             "set_gc_object() on invalid block: {:p} (allocated={})",
             self, self.allocated);
-        self.object_map.insert(object);
+        self.object_map.set_object(object);
     }
 
     /// Unset an address in this block as a valid object.
@@ -69,20 +122,20 @@ impl BlockInfo {
         debug_assert!(self.is_in_block(object),
             "unset_gc_object() on invalid block: {:p} (allocated={})",
             self, self.allocated);
-        self.object_map.remove(&object);
+        self.object_map.unset_object(object);
     }
 
     /// Return if an address in this block is a valid object.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         if self.is_in_block(object) {
-            return self.object_map.contains(&object);
+            return self.object_map.is_object(object);
         }
         return false;
     }
 
     /// Get a copy of the object map.
     pub fn get_object_map(&mut self) -> HashSet<GCObjectRef> {
-        return self.object_map.clone();
+        return self.object_map.as_hashset(self as *mut BlockInfo as *mut u8);
     }
 
     /// Clear the object map.
@@ -95,21 +148,19 @@ impl BlockInfo {
         debug_assert!(self.is_in_block(object),
             "set_new_object() on invalid block: {:p} (allocated={})",
             self, self.allocated);
-        self.new_objects.insert(object);
+        self.new_objects.set_object(object);
     }
 
     /// Get the new objects in this block.
     pub fn get_new_objects(&mut self) -> HashSet<GCObjectRef> {
-        return self.new_objects.clone();
+        return self.new_objects.as_hashset(self as *mut BlockInfo as *mut u8);
     }
 
     /// Remove all the new objects from the object map and clear the new
     /// objects set.
     pub fn remove_new_objects_from_map(&mut self) {
-        let new_objects = self.new_objects.drain().collect();
-        let difference = self.object_map.difference(&new_objects)
-                                        .map(|o| *o).collect();
-        self.object_map = difference;
+        self.object_map.difference(&self.new_objects);
+        self.new_objects.clear();
     }
 
     /// Set as an evacuation candidate if this block has at least `hole_count`
