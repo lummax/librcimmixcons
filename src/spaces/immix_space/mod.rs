@@ -72,6 +72,7 @@ impl ImmixSpace {
 
     /// Decrement the lines on which the object is allocated.
     pub fn decrement_lines(&self, object: GCObjectRef) {
+        debug!("decrement_lines() on object {:p}", object);
         debug_assert!(self.is_gc_object(object),
                      "decrement_lines() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).decrement_lines(object); }
@@ -79,6 +80,7 @@ impl ImmixSpace {
 
     /// Increment the lines on which the object is allocated.
     pub fn increment_lines(&self, object: GCObjectRef) {
+        debug!("increment_lines() on object {:p}", object);
         debug_assert!(self.is_gc_object(object),
                       "increment_lines() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).increment_lines(object); }
@@ -86,6 +88,7 @@ impl ImmixSpace {
 
     /// Set an address in this space as a valid object.
     pub fn set_gc_object(&self, object: GCObjectRef) {
+        debug!("set_gc_object() on object {:p}", object);
         debug_assert!(self.block_allocator.borrow().is_in_space(object),
                       "set_gc_object() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).set_gc_object(object); }
@@ -93,6 +96,7 @@ impl ImmixSpace {
 
     /// Unset an address as a valid object within the immix space.
     pub fn unset_gc_object(&self, object: GCObjectRef) {
+        debug!("unset_gc_object() on object {:p}", object);
         debug_assert!(self.block_allocator.borrow().is_in_space(object),
                       "unset_gc_object() on invalid object {:p}", object);
         unsafe{ (*ImmixSpace::get_block_ptr(object)).unset_gc_object(object); }
