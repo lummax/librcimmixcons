@@ -2,6 +2,7 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 use std::collections::{BitSet, HashSet, VecMap};
+use std::collections::vec_map::Entry;
 use std::num::Int;
 
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
@@ -321,25 +322,23 @@ impl BlockInfo{
         let line_num = BlockInfo::object_to_line_num(object);
         let object_size = unsafe{ (*object).object_size() };
         for line in line_num..(line_num + (object_size / LINE_SIZE) + 1) {
-            match increment {
-                true => {
-                    if self.line_counter.contains_key(&line) {
-                        if let Some(val) = self.line_counter.get_mut(&line) {
-                            *val += 1;
-                        }
-                    } else { self.line_counter.insert(line, 1); }
-                    debug!("Incremented line count for line {} to {}", line,
-                           self.line_counter.get(&line).unwrap());
-                },
-                false => {
-                    if self.line_counter.contains_key(&line) {
-                        if let Some(val) = self.line_counter.get_mut(&line) {
-                            *val = Int::saturating_sub(*val, 1);
-                        }
-                    } else { self.line_counter.insert(line, 0); }
-                    debug!("Decremented line count for line {} to {}", line,
-                           self.line_counter.get(&line).unwrap());
+            match self.line_counter.entry(line) {
+                Entry::Vacant(view) => { view.insert(if increment { 1 } else { 0 }); },
+                Entry::Occupied(mut view) => {
+                    let val = view.get_mut();
+                    if increment {
+                        *val += 1;
+                    } else {
+                        *val = Int::saturating_sub(*val, 1);
+                    }
                 }
+            };
+            if increment {
+                debug!("Incremented line count for line {} to {}", line,
+                       self.line_counter.get(&line).unwrap());
+            } else {
+                debug!("Decremented line count for line {} to {}", line,
+                       self.line_counter.get(&line).unwrap());
             }
         }
     }
