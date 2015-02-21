@@ -10,8 +10,6 @@ pub use self::overflow_allocator::OverflowAllocator;
 pub use self::evac_allocator::EvacAllocator;
 use spaces::immix_space::block_info::BlockInfo;
 
-use std::collections::RingBuf;
-
 use constants::LINE_SIZE;
 use gc_object::GCObjectRef;
 
@@ -25,7 +23,7 @@ pub trait Allocator {
 
     /// Get all block managed by the allocator, draining any local
     /// collections.
-    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo>;
+    fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo>;
 
     /// Get the current block to allocate from.
     fn take_current_block(&mut self) -> Option<BlockTuple>;

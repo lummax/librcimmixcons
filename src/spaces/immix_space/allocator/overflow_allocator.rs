@@ -6,7 +6,6 @@ use spaces::immix_space::block_allocator::BlockAllocator;
 use spaces::immix_space::allocator::BlockTuple;
 use spaces::immix_space::allocator::Allocator;
 
-use std::collections::RingBuf;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -20,7 +19,7 @@ pub struct OverflowAllocator {
     block_allocator: Rc<RefCell<BlockAllocator>>,
 
     /// The exhausted blocks.
-    unavailable_blocks: RingBuf<*mut BlockInfo>,
+    unavailable_blocks: Vec<*mut BlockInfo>,
 
     /// The current block to allocate from.
     current_block: Option<BlockTuple>,
@@ -31,14 +30,14 @@ impl OverflowAllocator {
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> OverflowAllocator {
         return OverflowAllocator {
             block_allocator: block_allocator,
-            unavailable_blocks: RingBuf::new(),
+            unavailable_blocks: Vec::new(),
             current_block: None,
         };
     }
 }
 
 impl Allocator for OverflowAllocator {
-    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+    fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
                    .collect();
@@ -67,6 +66,6 @@ impl Allocator for OverflowAllocator {
 
     fn handle_full_block(&mut self, block: *mut BlockInfo) {
         debug!("Push block {:p} into unavailable_blocks", block);
-        self.unavailable_blocks.push_back(block);
+        self.unavailable_blocks.push(block);
     }
 }

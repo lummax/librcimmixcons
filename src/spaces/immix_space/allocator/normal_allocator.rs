@@ -6,7 +6,6 @@ use spaces::immix_space::block_allocator::BlockAllocator;
 use spaces::immix_space::allocator::BlockTuple;
 use spaces::immix_space::allocator::Allocator;
 
-use std::collections::RingBuf;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -21,10 +20,10 @@ pub struct NormalAllocator {
     block_allocator: Rc<RefCell<BlockAllocator>>,
 
     /// The exhausted blocks.
-    unavailable_blocks: RingBuf<*mut BlockInfo>,
+    unavailable_blocks: Vec<*mut BlockInfo>,
 
     /// The blocks with holes to recycle before requesting new blocks..
-    recyclable_blocks: RingBuf<*mut BlockInfo>,
+    recyclable_blocks: Vec<*mut BlockInfo>,
 
     /// The current block to allocate from.
     current_block: Option<BlockTuple>,
@@ -35,20 +34,20 @@ impl NormalAllocator {
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> NormalAllocator {
         return NormalAllocator {
             block_allocator: block_allocator,
-            unavailable_blocks: RingBuf::new(),
-            recyclable_blocks: RingBuf::new(),
+            unavailable_blocks: Vec::new(),
+            recyclable_blocks: Vec::new(),
             current_block: None,
         };
     }
 
     /// Set the recyclable blocks.
-    pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn set_recyclable_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.recyclable_blocks = blocks;
     }
 }
 
 impl Allocator for NormalAllocator {
-    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+    fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.recyclable_blocks.drain())
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
@@ -75,7 +74,7 @@ impl Allocator for NormalAllocator {
         if size >= LINE_SIZE {
             return None;
         }
-        return match self.recyclable_blocks.pop_front() {
+        return match self.recyclable_blocks.pop() {
             None => None,
             Some(block) => match unsafe{ (*block).scan_block((LINE_SIZE - 1) as u16) } {
                 None => {
@@ -90,6 +89,6 @@ impl Allocator for NormalAllocator {
 
     fn handle_full_block(&mut self, block: *mut BlockInfo) {
         debug!("Push block {:p} into unavailable_blocks", block);
-        self.unavailable_blocks.push_back(block);
+        self.unavailable_blocks.push(block);
     }
 }

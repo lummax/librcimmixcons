@@ -3,7 +3,7 @@
 
 extern crate libc;
 
-use std::collections::{HashSet, RingBuf};
+use std::collections::HashSet;
 use std::ptr;
 
 use gc_object::{GCRTTI, GCObject, GCObjectRef};
@@ -21,10 +21,10 @@ pub struct LargeObjectSpace  {
 
     /// Objects in this block that were never touched by the garbage
     /// collector.
-    new_objects: RingBuf<GCObjectRef>,
+    new_objects: Vec<GCObjectRef>,
 
     /// A buffer of elements to be freed after the RC collection phase.
-    free_buffer: RingBuf<GCObjectRef>,
+    free_buffer: Vec<GCObjectRef>,
 
     /// The current live mark for new objects. See `Spaces.current_live_mark`.
     current_live_mark: bool,
@@ -35,8 +35,8 @@ impl LargeObjectSpace  {
     pub fn new() -> LargeObjectSpace {
         return LargeObjectSpace {
             objects: HashSet::new(),
-            new_objects: RingBuf::new(),
-            free_buffer: RingBuf::new(),
+            new_objects: Vec::new(),
+            free_buffer: Vec::new(),
             current_live_mark: false,
         };
     }
@@ -49,11 +49,11 @@ impl LargeObjectSpace  {
 
     /// Enqueue an object to be freed after the RC collection phase.
     pub fn enqueue_free(&mut self, object: GCObjectRef) {
-        self.free_buffer.push_back(object);
+        self.free_buffer.push(object);
     }
 
     /// Get the new objects of the large object space.
-    pub fn get_new_objects(&mut self) -> RingBuf<GCObjectRef> {
+    pub fn get_new_objects(&mut self) -> Vec<GCObjectRef> {
         return self.new_objects.drain().collect();
     }
 
@@ -73,7 +73,7 @@ impl LargeObjectSpace  {
         if !object.is_null() {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             self.objects.insert(object);
-            self.new_objects.push_back(object);
+            self.new_objects.push(object);
             return Some(object);
         }
         return None;

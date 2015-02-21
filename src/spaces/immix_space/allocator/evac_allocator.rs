@@ -5,8 +5,6 @@ use spaces::immix_space::block_info::BlockInfo;
 use spaces::immix_space::allocator::BlockTuple;
 use spaces::immix_space::allocator::Allocator;
 
-use std::collections::RingBuf;
-
 use constants::{BLOCK_SIZE, LINE_SIZE};
 
 /// The `EvacAllocator` is used during the opportunistic evacuation in the
@@ -18,10 +16,10 @@ use constants::{BLOCK_SIZE, LINE_SIZE};
 /// dynamically (see rcimmix: MAX heuristic).
 pub struct EvacAllocator {
     /// The exhausted blocks.
-    unavailable_blocks: RingBuf<*mut BlockInfo>,
+    unavailable_blocks: Vec<*mut BlockInfo>,
 
     /// The free blocks to return on 'get_new_block()'.
-    evac_headroom: RingBuf<*mut BlockInfo>,
+    evac_headroom: Vec<*mut BlockInfo>,
 
     /// The current block to allocate from.
     current_block: Option<BlockTuple>,
@@ -31,14 +29,14 @@ impl EvacAllocator {
     /// Create a new `EvacAllocator`.
     pub fn new() -> EvacAllocator {
         return EvacAllocator {
-            unavailable_blocks: RingBuf::new(),
-            evac_headroom: RingBuf::new(),
+            unavailable_blocks: Vec::new(),
+            evac_headroom: Vec::new(),
             current_block: None,
         };
     }
 
     /// Extend the list of free blocks for evacuation.
-    pub fn extend_evac_headroom(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn extend_evac_headroom(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.evac_headroom.extend(blocks.into_iter());
     }
 
@@ -49,7 +47,7 @@ impl EvacAllocator {
 }
 
 impl Allocator for EvacAllocator {
-    fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+    fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
                    .chain(self.current_block.take().map(|b| b.0).into_iter())
                    .collect();
@@ -65,7 +63,7 @@ impl Allocator for EvacAllocator {
 
     fn get_new_block(&mut self) -> Option<BlockTuple> {
         debug!("Request new block in evacuation");
-        return self.evac_headroom.pop_front()
+        return self.evac_headroom.pop()
                    .map(|b| unsafe{ (*b).set_allocated(); b })
                    .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
     }
@@ -77,6 +75,6 @@ impl Allocator for EvacAllocator {
 
     fn handle_full_block(&mut self, block: *mut BlockInfo) {
         debug!("Push block {:p} into unavailable_blocks", block);
-        self.unavailable_blocks.push_back(block);
+        self.unavailable_blocks.push(block);
     }
 }

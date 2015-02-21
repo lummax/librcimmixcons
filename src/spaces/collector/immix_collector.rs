@@ -1,7 +1,7 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::RingBuf;
+use std::collections::VecDeque;
 
 use spaces::immix_space::ImmixSpace;
 use gc_object::GCObjectRef;
@@ -22,7 +22,7 @@ impl ImmixCollector {
                    next_live_mark: bool) {
         debug!("Start Immix collection with {} roots and next_live_mark: {}",
                roots.len(), next_live_mark);
-        let mut object_queue: RingBuf<GCObjectRef> = roots.iter().map(|o| *o).collect();
+        let mut object_queue: VecDeque<GCObjectRef> = roots.iter().map(|o| *o).collect();
 
         while let Some(object) =  object_queue.pop_front() {
             debug!("Process object {:p} in Immix closure", object);

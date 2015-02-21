@@ -1,7 +1,7 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::RingBuf;
+use std::collections::VecDeque;
 
 use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
@@ -17,20 +17,20 @@ pub struct RCCollector {
     ///
     /// At the start of a reference counting collection a decrement is
     /// enqueued for every old root.
-    old_root_buffer: RingBuf<GCObjectRef>,
+    old_root_buffer: Vec<GCObjectRef>,
 
     /// The enqueued decrements on objects.
     ///
     /// These are applied in the last step of the reference counting
     /// collection.
-    decrement_buffer: RingBuf<GCObjectRef>,
+    decrement_buffer: VecDeque<GCObjectRef>,
 
     /// A buffer of modified objects.
     ///
     /// Objects are pushed into this buffer if they are encountered for the
     /// first time by the reference counting collector or marked as modified
     /// using the `write_barrier()`.
-    modified_buffer: RingBuf<GCObjectRef>,
+    modified_buffer: VecDeque<GCObjectRef>,
 
     /// Flag if this collection is a evacuating collection.
     perform_evac: bool,
@@ -40,9 +40,9 @@ impl RCCollector {
     /// Create a new `RCCollector`.
     pub fn new() -> RCCollector {
         return RCCollector {
-            old_root_buffer: RingBuf::new(),
-            decrement_buffer: RingBuf::new(),
-            modified_buffer: RingBuf::new(),
+            old_root_buffer: Vec::new(),
+            decrement_buffer: VecDeque::new(),
+            modified_buffer: VecDeque::new(),
             perform_evac: false,
         };
     }
@@ -134,13 +134,13 @@ impl RCCollector {
         for root in roots.iter().map(|o| *o) {
             debug!("Process root object: {:p}", root);
             self.increment(immix_space, root, false);
-            self.old_root_buffer.push_back(root);
+            self.old_root_buffer.push(root);
         }
     }
 
     /// Objects (roots) in the large object space are temporarily incremented.
     fn process_los_new_objects(&mut self, immix_space: &mut ImmixSpace,
-                               new_objects: RingBuf<GCObjectRef>) {
+                               new_objects: Vec<GCObjectRef>) {
         debug!("Process los new_objects (size {})", new_objects.len());
         for object in new_objects {
             self.increment(immix_space, object, false);

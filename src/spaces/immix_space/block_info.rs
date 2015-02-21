@@ -1,7 +1,7 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::{BitvSet, HashSet, VecMap};
+use std::collections::{BitSet, HashSet, VecMap};
 use std::num::Int;
 
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
@@ -10,14 +10,14 @@ use gc_object::GCObjectRef;
 
 /// A per block object map.
 struct ObjectMap {
-    set: BitvSet,
+    set: BitSet,
 }
 
 impl ObjectMap {
     /// Create a new `ObjectMap`.
     fn new() -> ObjectMap {
         return ObjectMap {
-            set: BitvSet::with_capacity(BLOCK_SIZE),
+            set: BitSet::with_capacity(BLOCK_SIZE),
         };
     }
 

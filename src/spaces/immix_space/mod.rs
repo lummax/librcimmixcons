@@ -14,7 +14,6 @@ use self::allocator::EvacAllocator;
 pub use self::block_info::BlockInfo;
 
 use std::{mem, ptr};
-use std::collections::RingBuf;
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -132,7 +131,7 @@ impl ImmixSpace {
     }
 
     /// Return a collection of blocks to the global block allocator.
-    pub fn return_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn return_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.block_allocator.borrow_mut().return_blocks(blocks);
     }
 
@@ -142,18 +141,18 @@ impl ImmixSpace {
     }
 
     /// Set the recyclable blocks for the `NormalAllocator`.
-    pub fn set_recyclable_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn set_recyclable_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.allocator.set_recyclable_blocks(blocks);
     }
 
     /// Extend the list of free blocks in the `EvacAllocator` for evacuation.
-    pub fn extend_evac_headroom(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn extend_evac_headroom(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.evac_allocator.extend_evac_headroom(blocks);
     }
 
     /// Get all block managed by all allocators, draining any local
     /// collections.
-    pub fn get_all_blocks(&mut self) -> RingBuf<*mut BlockInfo> {
+    pub fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         let mut normal_blocks = self.allocator.get_all_blocks();
         let mut overflow_blocks = self.overflow_allocator.get_all_blocks();
         let mut evac_blocks = self.evac_allocator.get_all_blocks();

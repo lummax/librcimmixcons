@@ -11,7 +11,7 @@ use spaces::immix_space::BlockInfo;
 use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
 
-use std::collections::{RingBuf, HashSet, VecMap};
+use std::collections::{HashSet, VecMap};
 
 use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, USE_EVACUATION,
                 EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
@@ -28,7 +28,7 @@ pub struct Collector {
     rc_collector: RCCollector,
 
     /// A buffer to store all managed blocks during collection.
-    all_blocks: RingBuf<*mut BlockInfo>,
+    all_blocks: Vec<*mut BlockInfo>,
 
     /// A global backup of the object map.
     ///
@@ -47,7 +47,7 @@ impl Collector {
     pub fn new() -> Collector {
         return Collector {
             rc_collector: RCCollector::new(),
-            all_blocks: RingBuf::new(),
+            all_blocks: Vec::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
         };
@@ -61,7 +61,7 @@ impl Collector {
     }
 
     /// Store the given blocks into the buffer for use during the collection.
-    pub fn extend_all_blocks(&mut self, blocks: RingBuf<*mut BlockInfo>) {
+    pub fn extend_all_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
         self.all_blocks.extend(blocks.into_iter());
     }
 
@@ -217,10 +217,10 @@ impl Collector {
     ///
     /// This function returns a list of recyclable blocks and a list of free
     /// blocks.
-    fn sweep_all_blocks(&mut self) -> (RingBuf<*mut BlockInfo>, RingBuf<*mut BlockInfo>){
-        let mut unavailable_blocks = RingBuf::new();
-        let mut recyclable_blocks = RingBuf::new();
-        let mut free_blocks = RingBuf::new();
+    fn sweep_all_blocks(&mut self) -> (Vec<*mut BlockInfo>, Vec<*mut BlockInfo>){
+        let mut unavailable_blocks = Vec::new();
+        let mut recyclable_blocks = Vec::new();
+        let mut free_blocks = Vec::new();
         for block in self.all_blocks.drain() {
             if unsafe{ (*block).is_empty() } {
                 if cfg!(feature = "valgrind") {
@@ -231,7 +231,7 @@ impl Collector {
                 }
                 unsafe{ (*block).reset() ;}
                 debug!("Push block {:p} into free_blocks", block);
-                free_blocks.push_back(block);
+                free_blocks.push(block);
             } else {
                 unsafe{ (*block).count_holes(); }
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
@@ -245,11 +245,11 @@ impl Collector {
                 match holes {
                     0 => {
                         debug!("Push block {:p} into unavailable_blocks", block);
-                        unavailable_blocks.push_back(block);
+                        unavailable_blocks.push(block);
                     },
                     _ => {
                         debug!("Push block {:p} into recyclable_blocks", block);
-                        recyclable_blocks.push_back(block);
+                        recyclable_blocks.push(block);
                     }
                 }
             }
