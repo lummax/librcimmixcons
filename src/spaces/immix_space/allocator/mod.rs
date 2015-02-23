@@ -42,7 +42,8 @@ pub trait Allocator {
 
     /// Allocate an object of `size` bytes or return `None`.
     ///
-    /// This object is not initialized, just the memory chunk is allocated.
+    /// This allocation will be aligned (see `GCObject.object_size()`). This
+    /// object is not initialized, just the memory chunk is allocated.
     ///
     /// This will try to find a hole in the `take_current_block()`. If there
     /// Is no hole `handle_no_hole()` will be called. If this function returns

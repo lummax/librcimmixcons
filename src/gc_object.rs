@@ -176,8 +176,23 @@ impl GCObject {
     }
 
     /// Return the objects size in bytes.
+    ///
+    /// This rounds the size stored in the `GCRTTI` struct up to the
+    /// target_pointer_width.
+    #[cfg(target_pointer_width = "32")]
     pub fn object_size(&self) -> usize {
-        return unsafe{ (*self.rtti).object_size() };
+        let size = unsafe{ (*self.rtti).object_size() };
+        return size + (size % 4)
+    }
+
+    /// Return the objects size in bytes.
+    ///
+    /// This rounds the size stored in the `GCRTTI` struct up to the
+    /// target_pointer_width.
+    #[cfg(target_pointer_width = "64")]
+    pub fn object_size(&self) -> usize {
+        let size = unsafe{ (*self.rtti).object_size() };
+        return size + (size % 8)
     }
 
     /// Decrement the referece counter and return true if the reference count
