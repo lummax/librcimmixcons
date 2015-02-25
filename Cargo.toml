@@ -5,6 +5,7 @@ authors = ["lummax <luogpg@googlemail.com>"]
 
 [features]
 valgrind = ["vgrs"]
+no_large_object_space = []
 
 [dependencies.vgrs]
 git = "https://github.com/lummax/vgrs"

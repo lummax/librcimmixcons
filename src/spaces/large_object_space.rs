@@ -44,7 +44,10 @@ impl LargeObjectSpace  {
     /// Return if the object an the address is a valid object within the large
     /// object space.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
-        return self.objects.contains(&object);
+        if cfg!(not(feature = "no_large_object_space")) {
+            return self.objects.contains(&object);
+        }
+        return false;
     }
 
     /// Enqueue an object to be freed after the RC collection phase.
@@ -67,6 +70,9 @@ impl LargeObjectSpace  {
     ///
     /// This object is initialized and ready to use.
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
+        if cfg!(feature = "no_large_object_space") {
+            panic!("Large Object Space was disabled (`no_large_object_space`)");
+        }
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
         let object = unsafe{ libc::malloc(size as u64) } as GCObjectRef;
