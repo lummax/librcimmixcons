@@ -69,6 +69,17 @@ Using
 To include project in your C code include the header file `src/rcimmixcons.h`
 and link against the shared-object file.
 
+Large Object Space
+------------------
+
+The large object space (`LOS`) is currently implemented quite inefficiently.
+To disable it build using the feature `no_large_object_space`.
+
+```
+cargo build --features "no_large_object_space"
+cargo build --release --features "no_large_object_space"
+```
+
 Valgrind
 --------
 
