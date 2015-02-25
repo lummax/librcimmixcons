@@ -73,12 +73,13 @@ impl RCCollector {
     /// counting pushes the object into the modified buffer and enqueues a
     /// decrement for the old children.
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        debug!("Write barrier on object {:p}", object);
-        self.modified(object);
-        for child in unsafe{ (*object).children() } {
-            self.decrement(child);
+        if !unsafe{ (*object).set_logged(true) } {
+            debug!("Write barrier on object {:p}", object);
+            self.modified(object);
+            for child in unsafe{ (*object).children() } {
+                self.decrement(child);
+            }
         }
-        unsafe{ (*object).set_logged(true); }
     }
 }
 
