@@ -110,6 +110,13 @@ impl ImmixSpace {
         return false;
     }
 
+    /// Return a closure that behaves like `ImmixSpace::is_gc_object()`.
+    pub fn is_gc_object_filter<'a>(&'a self) -> Box<Fn(GCObjectRef) -> bool + 'a> {
+        let block_allocator = self.block_allocator.borrow();
+        return Box::new(move |object: GCObjectRef| block_allocator.is_in_space(object)
+            && unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) });
+    }
+
     /// Return if the object an the address is within the immix space.
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
         return self.block_allocator.borrow().is_in_space(object);

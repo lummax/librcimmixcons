@@ -50,6 +50,11 @@ impl LargeObjectSpace  {
         return false;
     }
 
+    /// Return a closure that behaves like `LargeObjectSpace::is_gc_object()`.
+    pub fn is_gc_object_filter<'a>(&'a self) -> Box<Fn(GCObjectRef) -> bool + 'a> {
+        return Box::new(move |object: GCObjectRef| self.is_gc_object(object));
+    }
+
     /// Enqueue an object to be freed after the RC collection phase.
     pub fn enqueue_free(&mut self, object: GCObjectRef) {
         self.free_buffer.push(object);

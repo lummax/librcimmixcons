@@ -116,6 +116,16 @@ impl Spaces {
                else { self.large_object_space.allocate(rtti) };
     }
 
+    /// Collect the roots using `Stack::enumerate_roots()` and filter them for
+    /// validity in `LargeObjectSpace` or `ImmixSpace`.
+    fn collect_roots(&self) -> Vec<GCObjectRef> {
+        let los_filter = self.large_object_space.is_gc_object_filter();
+        let immix_filter = self.immix_space.is_gc_object_filter();
+        return self.stack.enumerate_roots().into_iter()
+                         .filter(|o| los_filter(*o) || immix_filter(*o))
+                         .collect();
+    }
+
     /// Trigger a garbage collection.
     ///
     /// This will always run the referece counting collector. If `evacuation`
@@ -125,9 +135,7 @@ impl Spaces {
         debug!("Requested collection (evacuation={}, cycle_collect={})",
                evacuation, cycle_collect);
 
-        let roots: Vec<GCObjectRef> = self.stack.enumerate_roots().into_iter()
-                                                .filter(|o| self.is_gc_object(*o))
-                                                .collect();
+        let roots = self.collect_roots();
         self.collector.extend_all_blocks(self.immix_space.get_all_blocks());
 
         for root in roots.iter().map(|o| *o) {
