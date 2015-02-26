@@ -231,18 +231,16 @@ impl GCObject {
         }
     }
 
-    /// Return a vector of all the members of this object that are not null.
+    /// Return an iterator of all the members of this object that are not null.
     ///
     /// The members of an objects are the `GCRTTI.members` pointers after the
     /// `GCHeader.rtti` pointer in the `GCObject`.
-    pub fn children(&mut self) -> Vec<GCObjectRef> {
+    pub fn children(&mut self) -> GCObjectRefIter {
         let base: *const GCObjectRef = unsafe{ mem::transmute(&self.rtti) };
         let members = unsafe{ (*self.rtti).members() };
         debug!("Requested children for object: {:p} (rtti: {:p}, count: {})",
                self, self.rtti, members);
-        return (1..(members + 1)).map(|i| unsafe{ *base.offset(i as isize) })
-                                 .filter(|o| !o.is_null())
-                                 .collect();
+        return GCObjectRefIter::iter(1..(members + 1), base);
     }
 }
 

@@ -33,7 +33,7 @@ impl ImmixCollector {
                 }
                 debug!("Object {:p} was unmarked: process children", object);
                 let children = unsafe{ (*object).children() };
-                for (num, mut child) in children.into_iter().enumerate() {
+                for (num, mut child) in children.enumerate() {
                     if let Some(new_child) = unsafe{ (*child).is_forwarded() } {
                         debug!("Child {:p} is forwarded to {:p}", child, new_child);
                         unsafe{ (*object).set_member(num, new_child); }
