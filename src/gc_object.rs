@@ -4,6 +4,7 @@
 extern crate libc;
 
 use std::mem;
+use std::ops::Range;
 
 use constants::LINE_SIZE;
 
@@ -242,5 +243,35 @@ impl GCObject {
         return (1..(members + 1)).map(|i| unsafe{ *base.offset(i as isize) })
                                  .filter(|o| !o.is_null())
                                  .collect();
+    }
+}
+
+/// An `Iterator` over a `range` of `GCObjectRef`s starting at `base`.
+pub struct GCObjectRefIter {
+    range: Range<usize>,
+    base: *const GCObjectRef,
+}
+
+impl GCObjectRefIter {
+    /// Create a new `GCObjectRefIter` over `range`, starting at `base`.
+    pub fn iter(range: Range<usize>, base: *const GCObjectRef) -> GCObjectRefIter {
+        return GCObjectRefIter {
+            range: range,
+            base: base,
+        }
+    }
+}
+
+impl Iterator for GCObjectRefIter {
+    type Item = GCObjectRef;
+
+    fn next(&mut self) -> Option<GCObjectRef> {
+        for num in self.range.by_ref() {
+            let child = unsafe{ *self.base.offset(num as isize) };
+            if !child.is_null() {
+                return Some(child);
+            } else { continue }
+        }
+        return None;
     }
 }
