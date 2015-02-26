@@ -11,7 +11,7 @@ use self::collector::Collector;
 
 use constants::LARGE_OBJECT;
 use gc_object::{GCRTTI, GCObjectRef};
-use stack;
+use stack::Stack;
 
 /// The type of collection that will be performed.
 pub enum CollectionType {
@@ -54,14 +54,14 @@ impl CollectionType {
 /// The `Spaces` contains the different garbage collector spaces in which
 /// objects can be allocated that are managed by some collector.
 pub struct Spaces {
+    /// The stack of the one execution thread.
+    stack: Stack,
+
     /// The default immix space.
     immix_space: ImmixSpace,
 
     /// The large object space for objects greater than `LARGE_OBJECT`.
     large_object_space: LargeObjectSpace,
-
-    /// The static roots added via `set_static_root()`.
-    static_roots: Vec<*const GCObjectRef>,
 
     /// The collectors.
     collector: Collector,
@@ -80,20 +80,14 @@ impl Spaces {
     /// Create a new `Spaces`.
     pub fn new() -> Spaces {
         return Spaces {
+            stack: Stack::new(),
             immix_space: ImmixSpace::new(),
             large_object_space: LargeObjectSpace::new(),
-            static_roots: Vec::new(),
             collector: Collector::new(),
             current_live_mark: false,
         };
     }
 
-    pub fn static_roots(&self) -> &[*const GCObjectRef] {
-        debug!("There are {} possible static roots: {:?}",
-               self.static_roots.len(),
-               self.static_roots.iter().map(|o| unsafe{ **o }).collect::<Vec<GCObjectRef>>());
-        return self.static_roots.as_slice();
-    }
 
     /// Return if the given address is valid in any of the managed spaces.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
@@ -103,8 +97,7 @@ impl Spaces {
 
     /// Set an address of an object reference as static root.
     pub fn set_static_root(&mut self, address: *const GCObjectRef) {
-        debug!("Set address {:p} as static root", address);
-        self.static_roots.push(address);
+        self.stack.set_static_root(address);
     }
 
     /// A write barrier for the given `object` used with the `RCCollector`.
@@ -132,7 +125,9 @@ impl Spaces {
         debug!("Requested collection (evacuation={}, cycle_collect={})",
                evacuation, cycle_collect);
 
-        let roots = stack::enumerate_roots(self);
+        let roots: Vec<GCObjectRef> = self.stack.enumerate_roots().into_iter()
+                                                .filter(|o| self.is_gc_object(*o))
+                                                .collect();
         self.collector.extend_all_blocks(self.immix_space.get_all_blocks());
 
         for root in roots.iter().map(|o| *o) {

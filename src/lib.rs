@@ -82,7 +82,7 @@ impl RCImmixCons {
     pub fn collect(&mut self, evacuation: bool, cycle_collect: bool) {
         // Calling this function befor **ANYTHING** is important to save the
         // callee save registers on the stack.
-        let registers = stack::get_registers();
+        let registers = stack::Stack::get_registers();
         return self.spaces.collect(evacuation, cycle_collect);
     }
 
