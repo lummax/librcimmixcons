@@ -205,8 +205,8 @@ impl ImmixSpace {
         let size = unsafe{ (*object).object_size() };
         if let Some(new_object) = self.evac_allocator.allocate(size) {
             unsafe{
-                ptr::copy_nonoverlapping_memory(new_object as *mut u8,
-                                                object as *const u8, size);
+                ptr::copy_nonoverlapping(new_object as *mut u8,
+                                         object as *const u8, size);
                 debug_assert!(*object == *new_object,
                               "Evacuated object was not copied correcty");
                 (*object).set_forwarded(new_object);
