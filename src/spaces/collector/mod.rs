@@ -39,7 +39,7 @@ pub struct Collector {
 
     /// The mark histogram used during collection to calculate the required
     /// space for evacuation.
-    mark_histogram: VecMap<u8>,
+    mark_histogram: VecMap<usize>,
 }
 
 impl Collector {
@@ -81,7 +81,7 @@ impl Collector {
         if evacuation || available_evac_blocks < evac_threshhold {
             let hole_threshhold = self.establish_hole_threshhold(evac_headroom);
             perform_evac = USE_EVACUATION && hole_threshhold > 0
-                                          && hole_threshhold < NUM_LINES_PER_BLOCK as u8;
+                                          && hole_threshhold < NUM_LINES_PER_BLOCK;
             if perform_evac {
                 debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
                        hole_threshhold, evac_headroom);
@@ -260,8 +260,8 @@ impl Collector {
 
     /// Calculate how many holes a block needs to have to be selected as a
     /// evacuation candidate.
-    fn establish_hole_threshhold(&self, evac_headroom: usize) -> u8 {
-        let mut available_histogram : VecMap<u8> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
+    fn establish_hole_threshhold(&self, evac_headroom: usize) -> usize {
+        let mut available_histogram : VecMap<usize> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
         for block in self.all_blocks.iter() {
             let (holes, free_lines) = unsafe{ (**block).count_holes_and_available_lines() };
             if available_histogram.contains_key(&(holes as usize)) {
@@ -270,17 +270,16 @@ impl Collector {
                 }
             } else { available_histogram.insert(holes as usize, free_lines); }
         }
-        let mut required_lines = 0 as u8;
-        let mut available_lines = (evac_headroom
-                                   * (NUM_LINES_PER_BLOCK - 1)) as u8;
+        let mut required_lines = 0;
+        let mut available_lines = evac_headroom * (NUM_LINES_PER_BLOCK - 1);
 
         for threshold in (0..NUM_LINES_PER_BLOCK) {
             required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
             available_lines -= *available_histogram.get(&threshold).unwrap_or(&0);
             if available_lines <= required_lines {
-                return threshold as u8;
+                return threshold;
             }
         }
-        return NUM_LINES_PER_BLOCK as u8;
+        return NUM_LINES_PER_BLOCK;
     }
 }

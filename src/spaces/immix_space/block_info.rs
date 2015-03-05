@@ -68,7 +68,7 @@ impl ObjectMap {
 /// not exeed `LINE_SIZE` bytes in size.
 pub struct BlockInfo {
     /// A counter of live objects for every line in this block.
-    line_counter: VecMap<u8>,
+    line_counter: VecMap<usize>,
 
     /// A set of addresses that are valid objects. Needed for the conservative
     /// part.
@@ -82,7 +82,7 @@ pub struct BlockInfo {
     allocated: bool,
 
     /// How many holen are in this block.
-    hole_count: u8,
+    hole_count: usize,
 
     /// If this block is a candidate for opportunistic evacuation.
     evacuation_candidate: bool,
@@ -166,7 +166,7 @@ impl BlockInfo {
 
     /// Set as an evacuation candidate if this block has at least `hole_count`
     /// holes.
-    pub fn set_evacuation_candidate(&mut self, hole_count: u8) {
+    pub fn set_evacuation_candidate(&mut self, hole_count: usize) {
         debug!("Set block {:p} to evacuation_candidate={} ({} holes)",
                &self, self.hole_count >= hole_count, self.hole_count);
         self.evacuation_candidate = self.hole_count >= hole_count;
@@ -193,9 +193,9 @@ impl BlockInfo {
     ///
     /// _Note_: You must call count_holes() bevorhand to set the number of
     /// holes.
-    pub fn count_holes_and_marked_lines(&self) -> (u8, u8) {
+    pub fn count_holes_and_marked_lines(&self) -> (usize, usize) {
         return (self.hole_count,
-                self.line_counter.values().filter(|&e| *e != 0).count() as u8);
+                self.line_counter.values().filter(|&e| *e != 0).count());
     }
 
     /// Return the number of holes and available lines in this block.
@@ -204,9 +204,9 @@ impl BlockInfo {
     ///
     /// _Note_: You must call count_holes() bevorhand to set the number of
     /// holes.
-    pub fn count_holes_and_available_lines(&self) -> (u8, u8) {
+    pub fn count_holes_and_available_lines(&self) -> (usize, usize) {
         return (self.hole_count,
-                self.line_counter.values().filter(|&e| *e == 0).count() as u8);
+                self.line_counter.values().filter(|&e| *e == 0).count());
     }
 
     /// Clear the line counter map.
