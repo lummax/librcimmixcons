@@ -12,6 +12,7 @@ use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{HashSet, VecMap};
+use std::num::Int;
 
 use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, USE_EVACUATION,
                 EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
@@ -275,7 +276,7 @@ impl Collector {
 
         for threshold in (0..NUM_LINES_PER_BLOCK) {
             required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
-            available_lines -= *available_histogram.get(&threshold).unwrap_or(&0);
+            available_lines = available_lines.saturating_sub(*available_histogram.get(&threshold).unwrap_or(&0));
             if available_lines <= required_lines {
                 return threshold;
             }
