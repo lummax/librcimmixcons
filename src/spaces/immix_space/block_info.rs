@@ -329,7 +329,7 @@ impl BlockInfo{
                     if increment {
                         *val += 1;
                     } else {
-                        *val = Int::saturating_sub(*val, 1);
+                        *val = (*val).saturating_sub(1);
                     }
                 }
             };
