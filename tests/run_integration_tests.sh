@@ -1,9 +1,9 @@
 #!/bin/bash
 
 if [ -z "$LIBRARY_NAME" ]; then
-	LIBRARY_NAME=`basename target/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
-	CLANG_OPTS="-L target"
-	export LD_LIBRARY_PATH="target"
+	LIBRARY_NAME=`basename target/debug/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
+	CLANG_OPTS="-L target/debug"
+	export LD_LIBRARY_PATH="target/debug"
 fi
 
 function run_test {
