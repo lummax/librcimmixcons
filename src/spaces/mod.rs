@@ -101,10 +101,11 @@ impl Spaces {
     }
 
     /// A write barrier for the given `object` used with the `RCCollector`.
-    pub fn write_barrier(&mut self, object: GCObjectRef) {
+    pub fn write_barrier(&mut self, object: GCObjectRef) -> bool {
         if self.is_gc_object(object) {
-            self.collector.write_barrier(object);
+            return self.collector.write_barrier(object);
         }
+        return false;
     }
 
     /// Allocate a new object described by the `rtti` or returns `None` if

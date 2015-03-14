@@ -55,10 +55,11 @@ impl Collector {
     }
 
     /// A write barrier for the given `object` used with the `RCCollector`.
-    pub fn write_barrier(&mut self, object: GCObjectRef) {
+    pub fn write_barrier(&mut self, object: GCObjectRef) -> bool {
         if USE_RC_COLLECTOR {
-            self.rc_collector.write_barrier(object);
+            return self.rc_collector.write_barrier(object);
         }
+        return false;
     }
 
     /// Store the given blocks into the buffer for use during the collection.

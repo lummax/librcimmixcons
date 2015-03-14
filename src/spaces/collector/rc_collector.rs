@@ -7,6 +7,7 @@ use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
+use constants::WRITE_BARRIER_COLLECT_THRESHOLD;
 
 /// The `RCCollector` perform the steps for the deferred coalesced
 /// conservative reference counting. The `write_barrier()` must be called
@@ -34,6 +35,9 @@ pub struct RCCollector {
 
     /// Flag if this collection is a evacuating collection.
     perform_evac: bool,
+
+    /// Counter for write barrie invocations since last collection.
+    write_barrier_counter: usize,
 }
 
 impl RCCollector {
@@ -44,6 +48,7 @@ impl RCCollector {
             decrement_buffer: VecDeque::new(),
             modified_buffer: VecDeque::new(),
             perform_evac: false,
+            write_barrier_counter: 0,
         };
     }
 
@@ -66,20 +71,26 @@ impl RCCollector {
         self.process_los_new_objects(immix_space, large_object_space.get_new_objects());
         self.process_mod_buffer(immix_space);
         self.process_decrement_buffer(immix_space, large_object_space);
+        self.write_barrier_counter = 0;
         debug!("Complete collection");
     }
 
     /// The write barrier for an object in deferred coalesced reference
     /// counting pushes the object into the modified buffer and enqueues a
     /// decrement for the old children.
-    pub fn write_barrier(&mut self, object: GCObjectRef) {
+    ///
+    /// Returns if a collection should be triggered (see
+    /// constants::WRITE_BARRIER_COLLECT_THRESHOLD).
+    pub fn write_barrier(&mut self, object: GCObjectRef) -> bool {
         if !unsafe{ (*object).set_logged(true) } {
             debug!("Write barrier on object {:p}", object);
             self.modified(object);
             for child in unsafe{ (*object).children() } {
                 self.decrement(child);
             }
+            self.write_barrier_counter += 1;
         }
+        return self.write_barrier_counter >= WRITE_BARRIER_COLLECT_THRESHOLD;
     }
 }
 

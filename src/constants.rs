@@ -24,6 +24,10 @@ pub const LARGE_OBJECT: usize = 8 * 1024;
 /// the tracing immix collector will be utilized.
 pub const USE_RC_COLLECTOR: bool = true;
 
+/// Number of write barrier invocations after which a collection will be
+/// triggered.
+pub const WRITE_BARRIER_COLLECT_THRESHOLD: usize = 1000;
+
 /// Ratio when to trigger cycle collection.
 pub const CICLE_TRIGGER_THRESHHOLD: f32 = 0.01;
 

@@ -99,7 +99,9 @@ impl RCImmixCons {
     ///
     /// Call this function before modifying the members of this object!
     pub fn write_barrier(&mut self, object: GCObjectRef) {
-        return self.spaces.write_barrier(object);
+        if self.spaces.write_barrier(object) {
+            self.collect(false, false);
+        }
     }
 }
 
