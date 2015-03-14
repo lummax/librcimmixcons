@@ -93,10 +93,8 @@ impl Collector {
             }
         }
 
-        let perform_cycle_collect = if !cycle_collect {
-            let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
-            available_blocks < cycle_theshold
-        } else { true };
+        let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
+        let perform_cycle_collect = cycle_collect && (available_blocks < cycle_theshold);
 
         return match (USE_RC_COLLECTOR, perform_evac, perform_cycle_collect) {
             (true, false, false) => CollectionType::RCCollection,
