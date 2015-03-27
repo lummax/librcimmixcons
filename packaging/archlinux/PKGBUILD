@@ -6,7 +6,7 @@ arch=('x86_64')
 url="https://github.com/lummax/librcimmixcons"
 license=('MIT')
 depends=('gcc-libs')
-makedepends=()
+makedepends=('rust-nightly-bin')
 options=(!strip)
 
 prepare() {
@@ -16,7 +16,7 @@ prepare() {
 
 build() {
     cd ${pkgname}-${pkgver}
-	make all CARGO_OPTS="--release --features no_large_object_space"
+	make all CARGO_OPTS=--release
 }
 
 package() {
