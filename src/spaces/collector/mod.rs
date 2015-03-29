@@ -112,6 +112,8 @@ impl Collector {
     pub fn collect(&mut self, collection_type: &CollectionType,
                    roots: &[GCObjectRef], immix_space: &mut ImmixSpace,
                    large_object_space: &mut LargeObjectSpace, next_live_mark: bool) {
+        debug!("Perform collection (evacuation={}, cycle_collect={})",
+               collection_type.is_evac(), collection_type.is_immix());
 
         if USE_RC_COLLECTOR {
             self.perform_rc_collection(collection_type, roots, immix_space,
