@@ -87,7 +87,7 @@ impl Collector {
             if perform_evac {
                 debug!("Performing evacuation with hole_threshhold={} and evac_headroom={}",
                        hole_threshhold, evac_headroom);
-                for block in self.all_blocks.iter_mut() {
+                for block in &mut self.all_blocks {
                     unsafe{ (**block).set_evacuation_candidate(hole_threshhold); }
                 }
             }
@@ -132,13 +132,13 @@ impl Collector {
                              immix_space: &mut ImmixSpace,
                              large_object_space: &mut LargeObjectSpace) {
         if cfg!(feature = "valgrind") {
-            for block in self.all_blocks.iter_mut() {
+            for block in &mut self.all_blocks {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
                 self.object_map_backup.extend(block_new_objects.into_iter());
             }
         }
 
-        for block in self.all_blocks.iter_mut() {
+        for block in &mut self.all_blocks {
             unsafe{ (**block).remove_new_objects_from_map(); }
         }
 
@@ -148,7 +148,7 @@ impl Collector {
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
-            for block in self.all_blocks.iter_mut() {
+            for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 object_map.extend(block_object_map.into_iter());
             }
@@ -165,13 +165,13 @@ impl Collector {
                                     immix_space: &mut ImmixSpace,
                                     next_live_mark: bool) {
         if cfg!(feature = "valgrind") {
-            for block in self.all_blocks.iter_mut() {
+            for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 self.object_map_backup.extend(block_object_map.into_iter());
             }
         }
 
-        for block in self.all_blocks.iter_mut() {
+        for block in &mut self.all_blocks {
             unsafe{ (**block).clear_line_counts(); }
             unsafe{ (**block).clear_object_map(); }
         }
@@ -180,7 +180,7 @@ impl Collector {
 
         if cfg!(feature = "valgrind") {
             let mut object_map = HashSet::new();
-            for block in self.all_blocks.iter_mut() {
+            for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
                 object_map.extend(block_object_map.into_iter());
             }
