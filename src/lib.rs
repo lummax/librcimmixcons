@@ -8,6 +8,7 @@
 #![feature(alloc)]
 #![feature(std_misc)]
 #![feature(collections)]
+#![feature(convert)]
 #![feature(link_llvm_intrinsics)]
 
 //! This is an implementation of the `RCImmixCons` garbage collector.

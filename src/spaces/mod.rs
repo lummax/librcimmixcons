@@ -148,7 +148,7 @@ impl Spaces {
                                 self.immix_space.available_blocks(),
                                 self.immix_space.total_blocks(),
                                 self.immix_space.evac_headroom());
-        self.collector.collect(&collection_type, roots.as_slice(),
+        self.collector.collect(&collection_type, roots.as_ref(),
                                &mut self.immix_space,
                                &mut self.large_object_space,
                                !self.current_live_mark);
