@@ -6,10 +6,7 @@
 macro_rules! debug(
     ($($args:tt)*) => (
         if cfg!(not(ndebug)) {
-            let module_path: String = module_path!().to_string();
-            let line: String = line!().to_string();
-            let message: String = format_args!($($args)*).to_string();
-            println!("({}:{}) {}", module_path, line, message);
+            println!("({}:{}) {}", module_path!(), line!(), format_args!($($args)*));
         }
     )
 );
