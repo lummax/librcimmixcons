@@ -12,7 +12,6 @@ use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{HashSet, VecMap};
-use std::num::Int;
 
 use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, USE_EVACUATION,
                 EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};

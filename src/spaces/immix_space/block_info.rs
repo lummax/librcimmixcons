@@ -3,7 +3,6 @@
 
 use std::collections::{BitSet, HashSet, VecMap};
 use std::collections::vec_map::Entry;
-use std::num::Int;
 
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 use gc_object::GCObjectRef;
