@@ -5,7 +5,7 @@
 
 macro_rules! debug(
     ($($args:tt)*) => (
-        if cfg!(not(ndebug)) {
+        if cfg!(debug_assertions) {
             println!("({}:{}) {}", module_path!(), line!(), format_args!($($args)*));
         }
     )
@@ -55,7 +55,7 @@ macro_rules! valgrind_assert_no_leaks(
     () => (
         if cfg!(feature = "valgrind") {
             unsafe{
-                if cfg!(not(ndebug)) {
+                if cfg!(debug_assertions) {
                     ::macros::valgrind::do_quick_leak_check();
                 }
                 let leak_count = ::macros::valgrind::count_leaks();
