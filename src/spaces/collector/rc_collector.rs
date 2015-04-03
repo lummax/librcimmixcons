@@ -90,7 +90,8 @@ impl RCCollector {
             }
             self.write_barrier_counter += 1;
         }
-        return self.write_barrier_counter >= WRITE_BARRIER_COLLECT_THRESHOLD;
+        return WRITE_BARRIER_COLLECT_THRESHOLD > 0 &&
+            self.write_barrier_counter >= WRITE_BARRIER_COLLECT_THRESHOLD;
     }
 }
 

@@ -28,8 +28,8 @@ pub const LARGE_OBJECT: usize = 8 * 1024;
 pub const USE_RC_COLLECTOR: bool = true;
 
 /// Number of write barrier invocations after which a collection will be
-/// triggered.
-pub const WRITE_BARRIER_COLLECT_THRESHOLD: usize = 1000;
+/// triggered. If zero the write barrier will not trigger a collection.
+pub const WRITE_BARRIER_COLLECT_THRESHOLD: usize = 0;
 
 /// Ratio when to trigger cycle collection.
 pub const CICLE_TRIGGER_THRESHHOLD: f32 = 0.01;
