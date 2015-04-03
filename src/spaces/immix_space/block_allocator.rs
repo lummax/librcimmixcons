@@ -2,7 +2,7 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 #![allow(deprecated)]
-use std::{ptr, os};
+use std::ptr;
 use libc;
 
 use spaces::immix_space::block_info::BlockInfo;
