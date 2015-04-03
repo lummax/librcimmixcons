@@ -7,6 +7,9 @@ pub const HEAP_SIZE: usize = 1024 * 1024 * 1024;
 /// The size of a block in bytes.
 pub const BLOCK_SIZE: usize = 32 * 1024;
 
+/// The number ob blocks within the heap.
+pub const TOTAL_BLOCKS: usize = HEAP_SIZE / BLOCK_SIZE;
+
 /// The size of a line in bytes.
 pub const LINE_SIZE: usize = 256;
 

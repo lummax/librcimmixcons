@@ -72,11 +72,6 @@ impl BlockAllocator {
         self.free_blocks.extend(blocks.into_iter());
     }
 
-    /// Return the total number of possible blocks.
-    pub fn total_blocks(&self) -> usize {
-        return HEAP_SIZE / BLOCK_SIZE;
-    }
-
     /// Return the number of unallocated blocks.
     pub fn available_blocks(&self) -> usize {
         return (((self.data_bound as usize) - (self.data as usize)) % BLOCK_SIZE)

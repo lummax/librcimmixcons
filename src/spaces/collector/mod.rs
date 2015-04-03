@@ -13,8 +13,9 @@ use spaces::large_object_space::LargeObjectSpace;
 
 use std::collections::{HashSet, VecMap};
 
-use constants::{NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR, USE_EVACUATION,
-                EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD, EVAC_TRIGGER_THRESHHOLD};
+use constants::{TOTAL_BLOCKS, NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR,
+                USE_EVACUATION, EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD,
+                EVAC_TRIGGER_THRESHHOLD};
 use gc_object::GCObjectRef;
 use spaces::CollectionType;
 
@@ -73,11 +74,11 @@ impl Collector {
     /// will try to evacuate. If `cycle_collect` is set the immix tracing
     /// collector will be used.
     pub fn prepare_collection(&mut self, evacuation: bool, cycle_collect: bool,
-                              available_blocks: usize, total_blocks: usize,
-                              evac_headroom: usize) -> CollectionType {
+                              available_blocks: usize, evac_headroom: usize)
+                              -> CollectionType {
         let mut perform_evac = evacuation;
 
-        let evac_threshhold = ((total_blocks as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
+        let evac_threshhold = ((TOTAL_BLOCKS as f32) * EVAC_TRIGGER_THRESHHOLD) as usize;
         let available_evac_blocks = available_blocks + evac_headroom;
         if evacuation || available_evac_blocks < evac_threshhold {
             let hole_threshhold = self.establish_hole_threshhold(evac_headroom);
@@ -92,7 +93,7 @@ impl Collector {
             }
         }
 
-        let cycle_theshold = ((total_blocks as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
+        let cycle_theshold = ((TOTAL_BLOCKS as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
         let perform_cycle_collect = cycle_collect && (available_blocks < cycle_theshold);
 
         return match (USE_RC_COLLECTOR, perform_evac, perform_cycle_collect) {

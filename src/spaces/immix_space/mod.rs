@@ -122,11 +122,6 @@ impl ImmixSpace {
         return self.block_allocator.borrow().is_in_space(object);
     }
 
-    /// Return the total number of possible blocks.
-    pub fn total_blocks(&self) -> usize {
-        return self.block_allocator.borrow().total_blocks();
-    }
-
     /// Return the number of unallocated blocks.
     pub fn available_blocks(&self) -> usize {
         return self.block_allocator.borrow().available_blocks();
