@@ -135,7 +135,8 @@ impl BlockInfo {
 
     /// Get a copy of the object map.
     pub fn get_object_map(&mut self) -> HashSet<GCObjectRef> {
-        return self.object_map.as_hashset(self as *mut BlockInfo as *mut u8);
+        let self_ptr = self as *mut BlockInfo;
+        return self.object_map.as_hashset(self_ptr as *mut u8);
     }
 
     /// Clear the object map.
@@ -153,7 +154,8 @@ impl BlockInfo {
 
     /// Get the new objects in this block.
     pub fn get_new_objects(&mut self) -> HashSet<GCObjectRef> {
-        return self.new_objects.as_hashset(self as *mut BlockInfo as *mut u8);
+        let self_ptr = self as *mut BlockInfo;
+        return self.new_objects.as_hashset(self_ptr as *mut u8);
     }
 
     /// Remove all the new objects from the object map and clear the new
