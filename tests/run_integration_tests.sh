@@ -2,7 +2,7 @@
 
 if [ -z "$LIBRARY_NAME" ]; then
 	LIBRARY_NAME=`basename target/debug/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
-	CLANG_OPTS="-L target/debug"
+	CLANG_OPTS="-L target/debug -I src/"
 	export LD_LIBRARY_PATH="target/debug"
 fi
 
