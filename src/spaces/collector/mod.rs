@@ -64,7 +64,7 @@ impl Collector {
 
     /// Store the given blocks into the buffer for use during the collection.
     pub fn extend_all_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
-        self.all_blocks.extend(blocks.into_iter());
+        self.all_blocks.extend(blocks);
     }
 
     /// Prepare a collection.
@@ -134,7 +134,7 @@ impl Collector {
         if cfg!(feature = "valgrind") {
             for block in &mut self.all_blocks {
                 let block_new_objects = unsafe{ (**block).get_new_objects() };
-                self.object_map_backup.extend(block_new_objects.into_iter());
+                self.object_map_backup.extend(block_new_objects);
             }
         }
 
@@ -150,7 +150,7 @@ impl Collector {
             let mut object_map = HashSet::new();
             for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
-                object_map.extend(block_object_map.into_iter());
+                object_map.extend(block_object_map);
             }
             for &object in self.object_map_backup.difference(&object_map) {
                 valgrind_freelike!(object);
@@ -167,7 +167,7 @@ impl Collector {
         if cfg!(feature = "valgrind") {
             for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
-                self.object_map_backup.extend(block_object_map.into_iter());
+                self.object_map_backup.extend(block_object_map);
             }
         }
 
@@ -182,7 +182,7 @@ impl Collector {
             let mut object_map = HashSet::new();
             for block in &mut self.all_blocks {
                 let block_object_map = unsafe{ (**block).get_object_map() };
-                object_map.extend(block_object_map.into_iter());
+                object_map.extend(block_object_map);
             }
             for &object in self.object_map_backup.difference(&object_map) {
                 valgrind_freelike!(object);

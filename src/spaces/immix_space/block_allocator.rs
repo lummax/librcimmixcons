@@ -115,7 +115,7 @@ impl BlockAllocator {
 
     /// Return a collection of blocks.
     pub fn return_blocks(&mut self, blocks: Vec<*mut BlockInfo>) {
-        self.free_blocks.extend(blocks.into_iter());
+        self.free_blocks.extend(blocks);
     }
 
     /// Return the number of unallocated blocks.

@@ -39,7 +39,7 @@ impl OverflowAllocator {
 impl Allocator for OverflowAllocator {
     fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
-                   .chain(self.current_block.take().map(|b| b.0).into_iter())
+                   .chain(self.current_block.take().map(|b| b.0))
                    .collect();
     }
 

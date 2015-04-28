@@ -37,7 +37,7 @@ impl EvacAllocator {
 
     /// Extend the list of free blocks for evacuation.
     pub fn extend_evac_headroom(&mut self, blocks: Vec<*mut BlockInfo>) {
-        self.evac_headroom.extend(blocks.into_iter());
+        self.evac_headroom.extend(blocks);
     }
 
     /// Get the number of currently free blocks.
@@ -49,7 +49,7 @@ impl EvacAllocator {
 impl Allocator for EvacAllocator {
     fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         return self.unavailable_blocks.drain()
-                   .chain(self.current_block.take().map(|b| b.0).into_iter())
+                   .chain(self.current_block.take().map(|b| b.0))
                    .collect();
     }
 
