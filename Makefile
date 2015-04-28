@@ -7,13 +7,17 @@ all: build
 
 test:
 	$(CARGO) test $(CARGO_OPTS)
-	./tests/run_integration_tests.sh 
+	./tests/run_integration_tests.sh
 
 check:
 	$(MAKE) test
 	$(MAKE) test CARGO_OPTS="$(CARGO_OPTS) --features valgrind"
 
 install:
+	mkdir -p "${PREFIX}/include/"
+	install -m 0644 \
+		src/rcimmixcons.h \
+		"${PREFIX}/include/rcimmixcons.h"
 	mkdir -p "${PREFIX}/lib/"
 	install -m 0755 \
 		target/release/librcimmixcons-*.so \
