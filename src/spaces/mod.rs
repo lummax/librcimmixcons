@@ -154,9 +154,10 @@ impl Spaces {
         self.collector.complete_collection(&collection_type, &mut self.immix_space,
                                            &mut self.large_object_space);
 
-        for root in roots.iter() {
-            unsafe{ (**root).set_pinned(false); }
+        for root in roots.iter().map(|o| *o) {
+            unsafe{ (*root).set_pinned(false); }
         }
+
         if collection_type.is_immix() {
             self.current_live_mark = !self.current_live_mark;
             self.immix_space.set_current_live_mark(self.current_live_mark);
