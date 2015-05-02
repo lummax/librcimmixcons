@@ -136,7 +136,7 @@ impl RCCollector {
     /// The old roots are enqueued for a decrement.
     fn process_old_roots(&mut self) {
         debug!("Process old roots (size {})", self.old_root_buffer.len());
-        self.decrement_buffer.extend(self.old_root_buffer.drain());
+        self.decrement_buffer.extend(self.old_root_buffer.drain(..));
     }
 
     /// The current roots are incremented (but never evacuated) and stored as

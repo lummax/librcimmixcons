@@ -223,7 +223,7 @@ impl Collector {
         let mut unavailable_blocks = Vec::new();
         let mut recyclable_blocks = Vec::new();
         let mut free_blocks = Vec::new();
-        for block in self.all_blocks.drain() {
+        for block in self.all_blocks.drain(..) {
             if unsafe{ (*block).is_empty() } {
                 if cfg!(feature = "valgrind") {
                     let block_object_map = unsafe{ (*block).get_object_map() };

@@ -48,7 +48,7 @@ impl EvacAllocator {
 
 impl Allocator for EvacAllocator {
     fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
-        return self.unavailable_blocks.drain()
+        return self.unavailable_blocks.drain(..)
                    .chain(self.current_block.take().map(|b| b.0))
                    .collect();
     }

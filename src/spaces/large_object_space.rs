@@ -62,7 +62,7 @@ impl LargeObjectSpace  {
 
     /// Get the new objects of the large object space.
     pub fn get_new_objects(&mut self) -> Vec<GCObjectRef> {
-        return self.new_objects.drain().collect();
+        return self.new_objects.drain(..).collect();
     }
 
     /// Set the current live mark to `current_live_mark`.
@@ -94,7 +94,7 @@ impl LargeObjectSpace  {
     pub fn proccess_free_buffer(&mut self) {
         debug!("Starting processing free_buffer size={} after RC collection",
                self.free_buffer.len());
-        for object in self.free_buffer.drain() {
+        for object in self.free_buffer.drain(..) {
             debug!("Free object {:p} from RC collection", object);
             if self.objects.remove(&object) {
                 unsafe{ libc::free(object as *mut libc::c_void); }

@@ -158,9 +158,9 @@ impl ImmixSpace {
         let mut normal_blocks = self.allocator.get_all_blocks();
         let mut overflow_blocks = self.overflow_allocator.get_all_blocks();
         let mut evac_blocks = self.evac_allocator.get_all_blocks();
-        return normal_blocks.drain()
-                            .chain(overflow_blocks.drain())
-                            .chain(evac_blocks.drain())
+        return normal_blocks.drain(..)
+                            .chain(overflow_blocks.drain(..))
+                            .chain(evac_blocks.drain(..))
                             .collect();
     }
 
