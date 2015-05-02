@@ -20,7 +20,7 @@ install:
 		"${PREFIX}/include/rcimmixcons.h"
 	mkdir -p "${PREFIX}/lib/"
 	install -m 0755 \
-		target/release/librcimmixcons-*.so \
+		target/release/librcimmixcons.so \
 		"${PREFIX}/lib/librcimmixcons.so.${PKGVER}"
 	ldconfig -n "${PREFIX}/lib/"
 	ln -s "librcimmixcons.so.${PKGVER}" "${PREFIX}/lib/librcimmixcons.so"
