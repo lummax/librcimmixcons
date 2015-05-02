@@ -1,14 +1,13 @@
 #!/bin/bash
 
-if [ -z "$LIBRARY_NAME" ]; then
-	LIBRARY_NAME=`basename target/debug/librcimmixcons-*.so | sed -e 's/lib//' -e 's/\.so//'`
+if [ -z "$USE_GLOBAL_INSTALL" ]; then
 	CLANG_OPTS="-L target/debug -I src/"
 	export LD_LIBRARY_PATH="target/debug"
 fi
 
 function run_test {
     local file=$1;
-    clang -g -O0 "tests/$file.c" ${CLANG_OPTS} -l "$LIBRARY_NAME" -o "target/$file" || return 1;
+    clang -g -O0 "tests/$file.c" ${CLANG_OPTS} -l rcimmixcons -o "target/$file" || return 1;
     "./target/$file" || return 2;
     valgrind "./target/$file" || return 3;
     return 0;

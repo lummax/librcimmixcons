@@ -26,7 +26,7 @@ install:
 	ln -s "librcimmixcons.so.${PKGVER}" "${PREFIX}/lib/librcimmixcons.so"
 
 check-install:
-	LIBRARY_NAME=rcimmixcons ./tests/run_integration_tests.sh
+	USE_GLOBAL_INSTALL=y ./tests/run_integration_tests.sh
 
 %:
 	$(CARGO) $* $(CARGO_OPTS)
