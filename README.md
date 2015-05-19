@@ -47,8 +47,8 @@ And some features that would be nice:
 Building
 --------
 
-You'll need [Rust](http://rust-lang.org/) and [cargo](http://crates.io)
-installed. To build a development version use:
+You'll need [Rust](http://rust-lang.org/) (please use the nightly version) and
+[cargo](http://crates.io) installed. To build a development version use:
 
 ```
 cargo build
