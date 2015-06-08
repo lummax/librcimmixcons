@@ -107,7 +107,7 @@ impl RCImmixCons {
 #[no_mangle]
 #[doc(hidden)]
 pub extern fn rcx_create() -> *mut RCImmixCons {
-    return unsafe { std::boxed::into_raw(Box::new(RCImmixCons::new())) };
+    return std::boxed::into_raw(Box::new(RCImmixCons::new()));
 }
 
 #[no_mangle]
