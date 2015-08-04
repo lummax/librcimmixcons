@@ -1,8 +1,10 @@
 // Copyright (c) <2015> <lummax>
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
-use std::collections::{BitSet, HashSet, VecMap};
-use std::collections::vec_map::Entry;
+use std::collections::HashSet;
+
+use bit_set::BitSet;
+use vec_map::{VecMap, Entry};
 
 use constants::{BLOCK_SIZE, LINE_SIZE, NUM_LINES_PER_BLOCK};
 use gc_object::GCObjectRef;

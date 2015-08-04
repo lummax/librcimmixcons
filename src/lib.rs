@@ -3,10 +3,8 @@
 
 #![feature(libc)]
 #![feature(asm)]
-#![feature(alloc)]
-#![feature(std_misc)]
-#![feature(collections)]
-#![feature(collections_drain)]
+#![feature(box_raw)]
+#![feature(drain)]
 #![feature(link_llvm_intrinsics)]
 
 //! This is an implementation of the `RCImmixCons` garbage collector.
@@ -32,6 +30,9 @@
 //! `GCObject`. Allocation and collection is done using `RCImmixCons`.
 
 extern crate libc;
+extern crate bit_set;
+extern crate vec_map;
+
 use std::ptr;
 
 pub use self::gc_object::{GCHeader, GCRTTI, GCObject, GCObjectRef};
@@ -107,7 +108,7 @@ impl RCImmixCons {
 #[no_mangle]
 #[doc(hidden)]
 pub extern fn rcx_create() -> *mut RCImmixCons {
-    return std::boxed::into_raw(Box::new(RCImmixCons::new()));
+    return Box::into_raw(Box::new(RCImmixCons::new()));
 }
 
 #[no_mangle]

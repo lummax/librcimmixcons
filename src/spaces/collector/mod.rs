@@ -11,7 +11,9 @@ use spaces::immix_space::BlockInfo;
 use spaces::immix_space::ImmixSpace;
 use spaces::large_object_space::LargeObjectSpace;
 
-use std::collections::{HashSet, VecMap};
+use std::collections::HashSet;
+
+use vec_map::VecMap;
 
 use constants::{TOTAL_BLOCKS, NUM_LINES_PER_BLOCK, USE_RC_COLLECTOR,
                 USE_EVACUATION, EVAC_HEADROOM, CICLE_TRIGGER_THRESHHOLD,

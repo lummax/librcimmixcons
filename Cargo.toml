@@ -11,6 +11,10 @@ no_large_object_space = []
 git = "https://github.com/lummax/vgrs"
 optional = true
 
+[dependencies]
+bit-set = "0.2.0"
+vec_map = "0.3.0"
+
 [lib]
 name = "rcimmixcons"
 doctest = false
