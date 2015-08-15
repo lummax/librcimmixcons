@@ -50,16 +50,16 @@ pub trait Allocator {
     /// `None` a 'get_new_block()' is requested.
     fn allocate(&mut self, size: usize) -> Option<GCObjectRef> {
         debug!("Request to allocate an object of size {}", size);
-        return self.take_current_block()
-                   .and_then(|tp| self.scan_for_hole(size, tp))
-                   .or_else(|| self.handle_no_hole(size))
-                   .or_else(|| self.get_new_block())
-                   .map(|tp| self.allocate_from_block(size, tp))
-                   .map(|(tp, object)| {
-                       self.put_current_block(tp);
-                       valgrind_malloclike!(object, size);
-                       object
-                   });
+        self.take_current_block()
+            .and_then(|tp| self.scan_for_hole(size, tp))
+            .or_else(|| self.handle_no_hole(size))
+            .or_else(|| self.get_new_block())
+            .map(|tp| self.allocate_from_block(size, tp))
+            .map(|(tp, object)| {
+                self.put_current_block(tp);
+                valgrind_malloclike!(object, size);
+                object
+            })
     }
 
     /// Scan a block tuple for a hole of `size` bytes and return a matching
@@ -69,7 +69,7 @@ pub trait Allocator {
     /// returned.
     fn scan_for_hole(&mut self, size: usize, block_tuple: BlockTuple) -> Option<BlockTuple> {
         let (block, low, high) = block_tuple;
-        return match (high - low) as usize >= size {
+        match (high - low) as usize >= size {
             true => {
                 debug!("Found hole in block {:p}", block);
                 Some(block_tuple)
@@ -81,7 +81,7 @@ pub trait Allocator {
                 },
                 Some((low, high)) => self.scan_for_hole(size, (block, low, high)),
             }
-        };
+        }
     }
 
     /// Allocate an uninitialized object of `size` bytes from the block tuple.
@@ -97,6 +97,6 @@ pub trait Allocator {
             let object = unsafe { (*block).offset(low as usize) };
             debug!("Allocated object {:p} of size {} in {:p} (object={})",
                    object, size, block, size >= LINE_SIZE);
-            return ((block, low + size as u16, high), object);
+            ((block, low + size as u16, high), object)
         }
 }

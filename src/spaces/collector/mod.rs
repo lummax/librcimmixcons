@@ -48,20 +48,21 @@ pub struct Collector {
 impl Collector {
     /// Create a new `Collector`.
     pub fn new() -> Collector {
-        return Collector {
+        Collector {
             rc_collector: RCCollector::new(),
             all_blocks: Vec::new(),
             object_map_backup: HashSet::new(),
             mark_histogram: VecMap::with_capacity(NUM_LINES_PER_BLOCK),
-        };
+        }
     }
 
     /// A write barrier for the given `object` used with the `RCCollector`.
     pub fn write_barrier(&mut self, object: GCObjectRef) -> bool {
         if USE_RC_COLLECTOR {
-            return self.rc_collector.write_barrier(object);
+            self.rc_collector.write_barrier(object)
+        } else {
+            false
         }
-        return false;
     }
 
     /// Store the given blocks into the buffer for use during the collection.
@@ -98,7 +99,7 @@ impl Collector {
         let cycle_theshold = ((TOTAL_BLOCKS as f32) * CICLE_TRIGGER_THRESHHOLD) as usize;
         let perform_cycle_collect = cycle_collect && (available_blocks < cycle_theshold);
 
-        return match (USE_RC_COLLECTOR, perform_evac, perform_cycle_collect) {
+        match (USE_RC_COLLECTOR, perform_evac, perform_cycle_collect) {
             (true, false, false) => CollectionType::RCCollection,
             (true, true, false) => CollectionType::RCEvacCollection,
             (true, false, true) => CollectionType::ImmixCollection,
@@ -259,7 +260,7 @@ impl Collector {
             }
         }
         self.all_blocks = unavailable_blocks;
-        return (recyclable_blocks, free_blocks);
+        (recyclable_blocks, free_blocks)
     }
 
     /// Calculate how many holes a block needs to have to be selected as a
@@ -284,6 +285,6 @@ impl Collector {
                 return threshold;
             }
         }
-        return NUM_LINES_PER_BLOCK;
+        NUM_LINES_PER_BLOCK
     }
 }

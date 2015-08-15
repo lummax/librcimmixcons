@@ -33,26 +33,27 @@ pub struct LargeObjectSpace  {
 impl LargeObjectSpace  {
     /// Create a new `LargeObjectSpace`.
     pub fn new() -> LargeObjectSpace {
-        return LargeObjectSpace {
+        LargeObjectSpace {
             objects: HashSet::new(),
             new_objects: Vec::new(),
             free_buffer: Vec::new(),
             current_live_mark: false,
-        };
+        }
     }
 
     /// Return if the object an the address is a valid object within the large
     /// object space.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         if cfg!(not(feature = "no_large_object_space")) {
-            return self.objects.contains(&object);
+            self.objects.contains(&object)
+        } else {
+            false
         }
-        return false;
     }
 
     /// Return a closure that behaves like `LargeObjectSpace::is_gc_object()`.
     pub fn is_gc_object_filter<'a>(&'a self) -> Box<Fn(GCObjectRef) -> bool + 'a> {
-        return Box::new(move |object: GCObjectRef| self.is_gc_object(object));
+        Box::new(move |object: GCObjectRef| self.is_gc_object(object))
     }
 
     /// Enqueue an object to be freed after the RC collection phase.
@@ -62,7 +63,7 @@ impl LargeObjectSpace  {
 
     /// Get the new objects of the large object space.
     pub fn get_new_objects(&mut self) -> Vec<GCObjectRef> {
-        return self.new_objects.drain(..).collect();
+        self.new_objects.drain(..).collect()
     }
 
     /// Set the current live mark to `current_live_mark`.
@@ -85,9 +86,10 @@ impl LargeObjectSpace  {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             self.objects.insert(object);
             self.new_objects.push(object);
-            return Some(object);
+            Some(object)
+        } else {
+            None
         }
-        return None;
     }
 
     /// Free the objects in the free buffer.

@@ -28,11 +28,11 @@ pub struct EvacAllocator {
 impl EvacAllocator {
     /// Create a new `EvacAllocator`.
     pub fn new() -> EvacAllocator {
-        return EvacAllocator {
+        EvacAllocator {
             unavailable_blocks: Vec::new(),
             evac_headroom: Vec::new(),
             current_block: None,
-        };
+        }
     }
 
     /// Extend the list of free blocks for evacuation.
@@ -42,19 +42,19 @@ impl EvacAllocator {
 
     /// Get the number of currently free blocks.
     pub fn evac_headroom(&self) -> usize {
-        return self.evac_headroom.len();
+        self.evac_headroom.len()
     }
 }
 
 impl Allocator for EvacAllocator {
     fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
-        return self.unavailable_blocks.drain(..)
-                   .chain(self.current_block.take().map(|b| b.0))
-                   .collect();
+        self.unavailable_blocks.drain(..)
+            .chain(self.current_block.take().map(|b| b.0))
+            .collect()
     }
 
     fn take_current_block(&mut self) -> Option<BlockTuple> {
-        return self.current_block.take();
+        self.current_block.take()
     }
 
     fn put_current_block(&mut self, block_tuple: BlockTuple) {
@@ -63,14 +63,14 @@ impl Allocator for EvacAllocator {
 
     fn get_new_block(&mut self) -> Option<BlockTuple> {
         debug!("Request new block in evacuation");
-        return self.evac_headroom.pop()
-                   .map(|b| unsafe{ (*b).set_allocated(); b })
-                   .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+        self.evac_headroom.pop()
+            .map(|b| unsafe{ (*b).set_allocated(); b })
+            .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16))
     }
 
     #[allow(unused_variables)]
     fn handle_no_hole(&mut self, size: usize) -> Option<BlockTuple> {
-        return None;
+        None
     }
 
     fn handle_full_block(&mut self, block: *mut BlockInfo) {

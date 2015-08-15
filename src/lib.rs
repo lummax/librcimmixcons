@@ -7,6 +7,9 @@
 #![feature(drain)]
 #![feature(link_llvm_intrinsics)]
 
+#![feature(plugin)]
+#![plugin(clippy)]
+
 //! This is an implementation of the `RCImmixCons` garbage collector.
 //!
 //! A conservative reference counting garbage collector with the immix heap
@@ -57,9 +60,9 @@ pub struct RCImmixCons {
 impl RCImmixCons {
     /// Create a new `RCImmixCons`.
     pub fn new() -> RCImmixCons {
-        return RCImmixCons {
+        RCImmixCons {
             spaces: spaces::Spaces::new(),
-        };
+        }
     }
 
     /// Allocate a new object described by the `rtti` or returns `None`.
@@ -68,9 +71,9 @@ impl RCImmixCons {
     /// succussful. If there is still no memory to fullfill the allocation
     /// request return `None`.
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef> {
-        return self.spaces.allocate(rtti)
-                   .or_else(|| { self.collect(true, true);
-                                 self.spaces.allocate(rtti) });
+        self.spaces.allocate(rtti)
+            .or_else(|| { self.collect(true, true);
+                          self.spaces.allocate(rtti) })
     }
 
     /// Trigger a garbage collection.
@@ -83,7 +86,7 @@ impl RCImmixCons {
         // Calling this function befor **ANYTHING** is important to save the
         // callee save registers on the stack.
         let registers = stack::Stack::get_registers();
-        return self.spaces.collect(evacuation, cycle_collect);
+        self.spaces.collect(evacuation, cycle_collect)
     }
 
     /// Set an address to an object reference as static root.
@@ -108,14 +111,14 @@ impl RCImmixCons {
 #[no_mangle]
 #[doc(hidden)]
 pub extern fn rcx_create() -> *mut RCImmixCons {
-    return Box::into_raw(Box::new(RCImmixCons::new()));
+    Box::into_raw(Box::new(RCImmixCons::new()))
 }
 
 #[no_mangle]
 #[doc(hidden)]
 pub extern fn rcx_allocate(this: *mut RCImmixCons, rtti: *const GCRTTI)
     -> GCObjectRef {
-    unsafe { return (*this).allocate(rtti).unwrap_or(ptr::null_mut()); }
+    unsafe { (*this).allocate(rtti).unwrap_or(ptr::null_mut()) }
 }
 
 #[no_mangle]

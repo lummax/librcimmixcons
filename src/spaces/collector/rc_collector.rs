@@ -43,13 +43,13 @@ pub struct RCCollector {
 impl RCCollector {
     /// Create a new `RCCollector`.
     pub fn new() -> RCCollector {
-        return RCCollector {
+        RCCollector {
             old_root_buffer: Vec::new(),
             decrement_buffer: VecDeque::new(),
             modified_buffer: VecDeque::new(),
             perform_evac: false,
             write_barrier_counter: 0,
-        };
+        }
     }
 
     /// Collect garbage using deferred coalesced conservative reference
@@ -90,8 +90,8 @@ impl RCCollector {
             }
             self.write_barrier_counter += 1;
         }
-        return WRITE_BARRIER_COLLECT_THRESHOLD > 0 &&
-            self.write_barrier_counter >= WRITE_BARRIER_COLLECT_THRESHOLD;
+        WRITE_BARRIER_COLLECT_THRESHOLD > 0 &&
+            self.write_barrier_counter >= WRITE_BARRIER_COLLECT_THRESHOLD
     }
 }
 
@@ -130,7 +130,7 @@ impl RCCollector {
             }
             self.modified(object);
         }
-        return None;
+        None
     }
 
     /// The old roots are enqueued for a decrement.

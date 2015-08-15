@@ -60,13 +60,13 @@ impl ImmixSpace {
         let block_allocator = Rc::new(RefCell::new(BlockAllocator::new()));
         let normal_block_allocator = block_allocator.clone();
         let overflow_block_allocator = block_allocator.clone();
-        return ImmixSpace {
+        ImmixSpace {
             block_allocator: block_allocator,
             allocator: NormalAllocator::new(normal_block_allocator),
             overflow_allocator: OverflowAllocator::new(overflow_block_allocator),
             evac_allocator: EvacAllocator::new(),
             current_live_mark: false,
-        };
+        }
     }
 
     /// Decrement the lines on which the object is allocated.
@@ -105,31 +105,32 @@ impl ImmixSpace {
     /// space.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         if self.block_allocator.borrow().is_in_space(object) {
-            return unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) };
+            unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) }
+        } else {
+            false
         }
-        return false;
     }
 
     /// Return a closure that behaves like `ImmixSpace::is_gc_object()`.
     pub fn is_gc_object_filter<'a>(&'a self) -> Box<Fn(GCObjectRef) -> bool + 'a> {
         let block_allocator = self.block_allocator.borrow();
-        return Box::new(move |object: GCObjectRef| block_allocator.is_in_space(object)
-            && unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) });
+        Box::new(move |object: GCObjectRef| block_allocator.is_in_space(object)
+            && unsafe{ (*ImmixSpace::get_block_ptr(object)).is_gc_object(object) })
     }
 
     /// Return if the object an the address is within the immix space.
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.block_allocator.borrow().is_in_space(object);
+        self.block_allocator.borrow().is_in_space(object)
     }
 
     /// Return the number of unallocated blocks.
     pub fn available_blocks(&self) -> usize {
-        return self.block_allocator.borrow().available_blocks();
+        self.block_allocator.borrow().available_blocks()
     }
 
     /// Get the number of currently free blocks in the evacuation allocator.
     pub fn evac_headroom(&self) -> usize {
-        return self.evac_allocator.evac_headroom();
+        self.evac_allocator.evac_headroom()
     }
 
     /// Return a collection of blocks to the global block allocator.
@@ -154,6 +155,7 @@ impl ImmixSpace {
 
     /// Get all block managed by all allocators, draining any local
     /// collections.
+    #[allow(needless_return)]
     pub fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         let mut normal_blocks = self.allocator.get_all_blocks();
         let mut overflow_blocks = self.overflow_allocator.get_all_blocks();
@@ -176,9 +178,10 @@ impl ImmixSpace {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             unsafe{ (*ImmixSpace::get_block_ptr(object)).set_new_object(object); }
             self.set_gc_object(object);
-            return Some(object);
+            Some(object)
+        } else {
+            None
         }
-        return None;
     }
 
     /// Evacuate the object to another block using the `EvacAllocator`
@@ -213,7 +216,7 @@ impl ImmixSpace {
             return Some(new_object);
         }
         debug!("Can't evacuation object {:p} from block {:p}", object, block_info);
-        return None;
+        None
     }
 }
 
@@ -223,6 +226,6 @@ impl ImmixSpace {
         let block_offset = object as usize % BLOCK_SIZE;
         let block = mem::transmute((object as *mut u8).offset(-(block_offset as isize)));
         debug!("Block for object {:p}: {:p} with offset: {}", object, block, block_offset);
-        return block;
+        block
     }
 }

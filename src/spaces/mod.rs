@@ -35,7 +35,7 @@ impl CollectionType {
     /// Returns if this `CollectionType` is an evacuating collection.
     pub fn is_evac(&self) -> bool {
         use self::CollectionType::{RCEvacCollection, ImmixEvacCollection};
-        return match *self {
+        match *self {
             RCEvacCollection | ImmixEvacCollection => true,
             _ => false,
         }
@@ -44,7 +44,7 @@ impl CollectionType {
     /// Returns if this `CollectionType` is a cycle collecting collection.
     pub fn is_immix(&self) -> bool {
         use self::CollectionType::{ImmixCollection, ImmixEvacCollection};
-        return match *self {
+        match *self {
             ImmixCollection | ImmixEvacCollection => true,
             _ => false,
         }
@@ -79,20 +79,20 @@ pub struct Spaces {
 impl Spaces {
     /// Create a new `Spaces`.
     pub fn new() -> Spaces {
-        return Spaces {
+        Spaces {
             stack: Stack::new(),
             immix_space: ImmixSpace::new(),
             large_object_space: LargeObjectSpace::new(),
             collector: Collector::new(),
             current_live_mark: false,
-        };
+        }
     }
 
 
     /// Return if the given address is valid in any of the managed spaces.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
-        return self.immix_space.is_gc_object(object)
-               || self.large_object_space.is_gc_object(object);
+        self.immix_space.is_gc_object(object)
+               || self.large_object_space.is_gc_object(object)
     }
 
     /// Set an address of an object reference as static root.
@@ -103,9 +103,10 @@ impl Spaces {
     /// A write barrier for the given `object` used with the `RCCollector`.
     pub fn write_barrier(&mut self, object: GCObjectRef) -> bool {
         if self.is_gc_object(object) {
-            return self.collector.write_barrier(object);
+            self.collector.write_barrier(object)
+        } else {
+            false
         }
-        return false;
     }
 
     /// Allocate a new object described by the `rtti` or returns `None` if
@@ -113,8 +114,8 @@ impl Spaces {
     pub fn allocate(&mut self, rtti: *const GCRTTI) -> Option<GCObjectRef>{
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        return if size < LARGE_OBJECT { self.immix_space.allocate(rtti) }
-               else { self.large_object_space.allocate(rtti) };
+        if size < LARGE_OBJECT { self.immix_space.allocate(rtti) }
+        else { self.large_object_space.allocate(rtti) }
     }
 
     /// Collect the roots using `Stack::enumerate_roots()` and filter them for
@@ -122,9 +123,9 @@ impl Spaces {
     fn collect_roots(&self) -> Vec<GCObjectRef> {
         let los_filter = self.large_object_space.is_gc_object_filter();
         let immix_filter = self.immix_space.is_gc_object_filter();
-        return self.stack.enumerate_roots().into_iter()
-                         .filter(|o| los_filter(*o) || immix_filter(*o))
-                         .collect();
+        self.stack.enumerate_roots().into_iter()
+                  .filter(|o| los_filter(*o) || immix_filter(*o))
+                  .collect()
     }
 
     /// Trigger a garbage collection.

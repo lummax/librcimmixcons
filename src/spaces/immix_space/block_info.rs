@@ -18,14 +18,14 @@ struct ObjectMap {
 impl ObjectMap {
     /// Create a new `ObjectMap`.
     fn new() -> ObjectMap {
-        return ObjectMap {
+        ObjectMap {
             set: BitSet::with_capacity(BLOCK_SIZE),
-        };
+        }
     }
 
     /// Reduce the objects address to an offset within the block.
     fn index(object: GCObjectRef) -> usize {
-        return (object as usize) % BLOCK_SIZE;
+        (object as usize) % BLOCK_SIZE
     }
 
     /// Set the address as a valid object.
@@ -40,7 +40,7 @@ impl ObjectMap {
 
     /// Return `true` is the address is a valid object.
     fn is_object(&self, object: GCObjectRef) -> bool {
-        return self.set.contains(&ObjectMap::index(object));
+        self.set.contains(&ObjectMap::index(object))
     }
 
     /// Update this `ObjectMap` with the difference of this `ObjectMap` and
@@ -56,9 +56,9 @@ impl ObjectMap {
 
     /// Retrieve the values as a `HashSet`.
     fn as_hashset(&self, base: *mut u8) -> HashSet<GCObjectRef> {
-        return self.set.iter()
-                       .map(|i| unsafe{ base.offset(i as isize) as GCObjectRef})
-                       .collect();
+        self.set.iter()
+                .map(|i| unsafe{ base.offset(i as isize) as GCObjectRef})
+                .collect()
     }
 }
 
@@ -96,14 +96,14 @@ impl BlockInfo {
         for index in (0..NUM_LINES_PER_BLOCK) {
             line_counter.insert(index, 0);
         }
-        return BlockInfo {
+        BlockInfo {
             line_counter: line_counter,
             object_map: ObjectMap::new(),
             new_objects: ObjectMap::new(),
             allocated: false,
             hole_count: 0,
             evacuation_candidate: false,
-        };
+        }
     }
 
     /// Set this block as allocated (actually in use).
@@ -130,15 +130,16 @@ impl BlockInfo {
     /// Return if an address in this block is a valid object.
     pub fn is_gc_object(&self, object: GCObjectRef) -> bool {
         if self.is_in_block(object) {
-            return self.object_map.is_object(object);
+            self.object_map.is_object(object)
+        } else {
+            false
         }
-        return false;
     }
 
     /// Get a copy of the object map.
     pub fn get_object_map(&mut self) -> HashSet<GCObjectRef> {
         let self_ptr = self as *mut BlockInfo;
-        return self.object_map.as_hashset(self_ptr as *mut u8);
+        self.object_map.as_hashset(self_ptr as *mut u8)
     }
 
     /// Clear the object map.
@@ -157,7 +158,7 @@ impl BlockInfo {
     /// Get the new objects in this block.
     pub fn get_new_objects(&mut self) -> HashSet<GCObjectRef> {
         let self_ptr = self as *mut BlockInfo;
-        return self.new_objects.as_hashset(self_ptr as *mut u8);
+        self.new_objects.as_hashset(self_ptr as *mut u8)
     }
 
     /// Remove all the new objects from the object map and clear the new
@@ -177,7 +178,7 @@ impl BlockInfo {
 
     /// Return if this is an evacuation candidate.
     pub fn is_evacuation_candidate(&self) -> bool{
-        return self.evacuation_candidate;
+        self.evacuation_candidate
     }
 
     /// Increment the lines on which the object is allocated.
@@ -197,8 +198,9 @@ impl BlockInfo {
     /// _Note_: You must call count_holes() bevorhand to set the number of
     /// holes.
     pub fn count_holes_and_marked_lines(&self) -> (usize, usize) {
-        return (self.hole_count,
-                self.line_counter.values().filter(|&e| *e != 0).count());
+        (self.hole_count, self.line_counter.values()
+                                           .filter(|&e| *e != 0)
+                                           .count())
     }
 
     /// Return the number of holes and available lines in this block.
@@ -208,8 +210,9 @@ impl BlockInfo {
     /// _Note_: You must call count_holes() bevorhand to set the number of
     /// holes.
     pub fn count_holes_and_available_lines(&self) -> (usize, usize) {
-        return (self.hole_count,
-                self.line_counter.values().filter(|&e| *e == 0).count());
+        (self.hole_count, self.line_counter.values()
+                                           .filter(|&e| *e == 0)
+                                           .count())
     }
 
     /// Clear the line counter map.
@@ -230,14 +233,14 @@ impl BlockInfo {
 
     /// Return true if no line is marked (every line has a count of zero).
     pub fn is_empty(&self) -> bool {
-        return self.line_counter.values().all(|v| *v == 0);
+        self.line_counter.values().all(|v| *v == 0)
     }
 
     /// Get a pointer to an address `offset` bytes into this block.
     pub fn offset(&mut self, offset: usize) -> GCObjectRef {
         let self_ptr = self as *mut BlockInfo;
         let object = unsafe { (self_ptr as *mut u8).offset(offset as isize) };
-        return object as GCObjectRef;
+        object as GCObjectRef
     }
 
     /// Scan the block for a hole to allocate into.
@@ -276,7 +279,7 @@ impl BlockInfo {
                          (high_index * LINE_SIZE - 1) as u16));
         }
         debug!("Found no hole in block {:p}", self);
-        return None;
+        None
     }
 
     /// Count the holes in this block.
@@ -304,15 +307,15 @@ impl BlockInfo{
         if self.allocated {
             let self_ptr = self as *const BlockInfo as *const u8;
             let self_bound = unsafe{ self_ptr.offset(BLOCK_SIZE as isize)};
-            return self_ptr < (object as *const u8)
-                && (object as *const u8) <  self_bound;
+            self_ptr < (object as *const u8) && (object as *const u8) <  self_bound
+        } else {
+            false
         }
-        return false;
     }
 
     /// Convert an address on this block into a line number.
     fn object_to_line_num(object: GCObjectRef) -> usize {
-        return (object as usize % BLOCK_SIZE) / LINE_SIZE;
+        (object as usize % BLOCK_SIZE) / LINE_SIZE
     }
 
     /// Update the line counter for the given object.

@@ -28,23 +28,23 @@ pub struct OverflowAllocator {
 impl OverflowAllocator {
     /// Create a new `OverflowAllocator` backed by the given `BlockAllocator`.
     pub fn new(block_allocator: Rc<RefCell<BlockAllocator>>) -> OverflowAllocator {
-        return OverflowAllocator {
+        OverflowAllocator {
             block_allocator: block_allocator,
             unavailable_blocks: Vec::new(),
             current_block: None,
-        };
+        }
     }
 }
 
 impl Allocator for OverflowAllocator {
     fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
-        return self.unavailable_blocks.drain(..)
-                   .chain(self.current_block.take().map(|b| b.0))
-                   .collect();
+        self.unavailable_blocks.drain(..)
+            .chain(self.current_block.take().map(|b| b.0))
+            .collect()
     }
 
     fn take_current_block(&mut self) -> Option<BlockTuple> {
-        return self.current_block.take();
+        self.current_block.take()
     }
 
     fn put_current_block(&mut self, block_tuple: BlockTuple) {
@@ -53,15 +53,16 @@ impl Allocator for OverflowAllocator {
 
     fn get_new_block(&mut self) -> Option<BlockTuple> {
         debug!("Request new block");
-        return self.block_allocator.borrow_mut()
-                   .get_block()
-                   .map(|b| unsafe{ (*b).set_allocated(); b })
-                   .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16));
+        self.block_allocator.borrow_mut()
+            .get_block()
+            .map(|b| unsafe{ (*b).set_allocated(); b })
+            .map(|block| (block, LINE_SIZE as u16, (BLOCK_SIZE - 1) as u16))
+
     }
 
     #[allow(unused_variables)]
     fn handle_no_hole(&mut self, size: usize) -> Option<BlockTuple> {
-        return None;
+        None
     }
 
     fn handle_full_block(&mut self, block: *mut BlockInfo) {

@@ -30,7 +30,7 @@ impl MemoryMap {
             panic!("Failed to allocate the heap memory map");
         }
 
-        return MemoryMap {
+        MemoryMap {
             mmap: mmap,
         }
     }
@@ -38,17 +38,17 @@ impl MemoryMap {
     /// Return a `BLOCK_SIZE` aligned pointer to the mmap'ed region.
     fn aligned(&self) -> *mut u8 {
         let offset = BLOCK_SIZE - (self.mmap as usize) % BLOCK_SIZE;
-        return unsafe{ self.mmap.offset(offset as isize) } as *mut u8;
+        unsafe{ self.mmap.offset(offset as isize) as *mut u8}
     }
 
     /// Return a pointer to the start of the mmap'ed region.
     fn start(&self) -> *mut u8 {
-        return self.mmap as *mut u8;
+        self.mmap as *mut u8
     }
 
     /// Return a pointer to the end of the mmap'ed region.
     fn bound(&self) -> *mut u8 {
-        return unsafe{ self.mmap.offset(HEAP_SIZE as isize) } as *mut u8;
+        unsafe{ self.mmap.offset(HEAP_SIZE as isize) as *mut u8 }
     }
 }
 
@@ -100,17 +100,17 @@ impl BlockAllocator {
         debug_assert!((data as usize) % BLOCK_SIZE == 0,
             "Allocated mmap {:p} is not aligned (offset {})",
             data, (data as usize) % BLOCK_SIZE);
-        return BlockAllocator {
+        BlockAllocator {
             mmap: mmap,
             data: data,
             data_bound: bound,
             free_blocks: Vec::with_capacity(TOTAL_BLOCKS),
-        };
+        }
     }
 
     /// Get a new block aligned to `BLOCK_SIZE`.
     pub fn get_block(&mut self) -> Option<*mut BlockInfo> {
-        return self.free_blocks.pop().or_else(|| self.build_next_block());
+        self.free_blocks.pop().or_else(|| self.build_next_block())
     }
 
     /// Return a collection of blocks.
@@ -120,14 +120,13 @@ impl BlockAllocator {
 
     /// Return the number of unallocated blocks.
     pub fn available_blocks(&self) -> usize {
-        return (((self.data_bound as usize) - (self.data as usize)) % BLOCK_SIZE)
-            + self.free_blocks.len();
+        (((self.data_bound as usize) - (self.data as usize)) % BLOCK_SIZE) + self.free_blocks.len()
     }
 
     /// Return if an address is within the bounds of the memory map.
     pub fn is_in_space(&self, object: GCObjectRef) -> bool {
-        return self.mmap.start() < (object as *mut u8)
-            && (object as *mut u8) < self.data_bound;
+        self.mmap.start() < (object as *mut u8)
+            && (object as *mut u8) < self.data_bound
     }
 }
 
@@ -143,8 +142,9 @@ impl BlockAllocator {
                 "Allocated block {:p} is not aligned (offset {})",
                 block, (block as usize) % BLOCK_SIZE);
             unsafe{ ptr::write(block as *mut BlockInfo, BlockInfo::new()); }
-            return Some(block as *mut BlockInfo);
+            Some(block as *mut BlockInfo)
+        } else {
+            None
         }
-        return None;
     }
 }

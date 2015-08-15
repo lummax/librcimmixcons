@@ -84,20 +84,20 @@ impl GCRTTI {
     /// Create a new `GCRTTI` for an object with `object_size` bytes and
     /// `members` members.
     pub fn new(object_size: usize, members: usize) -> GCRTTI {
-        return GCRTTI {
+        GCRTTI {
             object_size: object_size as libc::size_t,
             members: members as libc::size_t,
-        };
+        }
     }
 
     /// Return the objects size in bytes.
     pub fn object_size(&self) -> usize {
-        return self.object_size as usize;
+        self.object_size as usize
     }
 
     /// Return the number of members.
     pub fn members(&self) -> usize {
-        return self.members as usize;
+        self.members as usize
     }
 }
 
@@ -107,7 +107,7 @@ impl GCObject {
     pub fn new(rtti: *const GCRTTI, mark: bool) -> GCObject {
         debug!("GCobject::new(rtti={:p}, mark={})", rtti, mark);
         let size = unsafe{ (*rtti).object_size() };
-        return GCObject {
+        GCObject {
             header: GCHeader {
                 reference_count: 0,
                 spans_lines: size > LINE_SIZE,
@@ -126,7 +126,7 @@ impl GCObject {
         debug!("Set object {:p} logged={}", self, new);
         let logged = self.header.logged;
         self.header.logged = new;
-        return logged;
+        logged
     }
 
     /// Set the `marked` state and return if the state has not
@@ -135,12 +135,12 @@ impl GCObject {
         debug!("Set object {:p} marked={}", self, next);
         let marked = self.header.marked;
         self.header.marked = next;
-        return marked == next;
+        marked == next
     }
 
     /// Return if this object is currently marked with `next`.
     pub fn is_marked(&self, next: bool) -> bool {
-        return self.header.marked == next;
+        self.header.marked == next
     }
 
     /// Set the `pinned` state for this object.
@@ -151,7 +151,7 @@ impl GCObject {
 
     /// Return if this object is pinned.
     pub fn is_pinned(&self) -> bool {
-        return self.header.pinned;
+        self.header.pinned
     }
 
     /// Set the `forwarded` state and install a forewarding pointer to `new`.
@@ -165,15 +165,16 @@ impl GCObject {
     /// otherwise `None`.
     pub fn is_forwarded(&self) -> Option<GCObjectRef> {
         if self.header.forwarded {
-            return Some(self.rtti as GCObjectRef);
+            Some(self.rtti as GCObjectRef)
+        } else {
+            None
         }
-        return None;
     }
 
     /// Returns if this object spans lines (is greater than `LINE_SIZE`
     /// bytes).
     pub fn spans_lines(&self) -> bool {
-        return self.header.spans_lines;
+        self.header.spans_lines
     }
 
     /// Return the objects size in bytes.
@@ -193,7 +194,7 @@ impl GCObject {
     #[cfg(target_pointer_width = "64")]
     pub fn object_size(&self) -> usize {
         let size = unsafe{ (*self.rtti).object_size() };
-        return size + (size % 8)
+        size + (size % 8)
     }
 
     /// Decrement the referece counter and return true if the reference count
@@ -206,7 +207,7 @@ impl GCObject {
         }
         self.header.reference_count -= 1;
         debug!("Decrement object {:p} to {}", self, self.header.reference_count);
-        return self.header.reference_count == 0;
+        self.header.reference_count == 0
     }
 
     /// Increment the reference count, set the `new` state to `false` and
@@ -217,9 +218,10 @@ impl GCObject {
             self.header.reference_count, self.header.new);
         if self.header.new {
             self.header.new = false;
-            return true;
+            true
+        } else {
+            false
         }
-        return false;
     }
 
     /// Set the member at position `num` in the member array to `member`.
@@ -240,7 +242,7 @@ impl GCObject {
         let members = unsafe{ (*self.rtti).members() };
         debug!("Requested children for object: {:p} (rtti: {:p}, count: {})",
                self, self.rtti, members);
-        return GCObjectRefIter::iter(1..(members + 1), base);
+        GCObjectRefIter::iter(1..(members + 1), base)
     }
 }
 
@@ -253,7 +255,7 @@ pub struct GCObjectRefIter {
 impl GCObjectRefIter {
     /// Create a new `GCObjectRefIter` over `range`, starting at `base`.
     pub fn iter(range: Range<usize>, base: *const GCObjectRef) -> GCObjectRefIter {
-        return GCObjectRefIter {
+        GCObjectRefIter {
             range: range,
             base: base,
         }
@@ -270,6 +272,6 @@ impl Iterator for GCObjectRefIter {
                 return Some(child);
             } else { continue }
         }
-        return None;
+        None
     }
 }

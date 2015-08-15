@@ -26,7 +26,7 @@ pub mod valgrind {
     pub unsafe fn malloclike_block(addr: *const (), size: usize, redzone: usize, is_zeroed: bool) { }
     pub unsafe fn freelike_block(addr: *const (), redzone: usize) { }
     pub unsafe fn do_quick_leak_check() { }
-    pub unsafe fn count_leaks() -> LeakCount { return  LeakCount { leaked: 0 } }
+    pub unsafe fn count_leaks() -> LeakCount { LeakCount { leaked: 0 } }
 }
 
 macro_rules! valgrind_malloclike(

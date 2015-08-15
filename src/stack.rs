@@ -37,7 +37,7 @@ pub struct Stack {
 impl Stack {
     /// Create a new `Stack`.
     pub fn new() -> Stack {
-        return Stack {
+        Stack {
             stack_bottom: Stack::get_stack_bottom()
                                 .expect("Can not get the stack bottom."),
             static_roots: Vec::new(),
@@ -53,7 +53,7 @@ impl Stack {
             #[link_name = "llvm.frameaddress"]
             fn frameaddress(level: i32) -> *mut u8;
         }
-        unsafe{ return frameaddress(0); }
+        unsafe{ frameaddress(0) }
     }
 
     /// Return the bottom of the stack.
@@ -74,7 +74,7 @@ impl Stack {
                 return None;
             }
             pthread::pthread_attr_destroy(&mut attr);
-            return Some(stackaddr.offset(stacksize as isize) as *mut u8);
+            Some(stackaddr.offset(stacksize as isize) as *mut u8)
         }
     }
 
@@ -92,7 +92,7 @@ impl Stack {
         let mut r15 = ptr::null_mut(); unsafe{ asm!("movq %r15, %rax": "=rax" (r15));}
         let registers = vec![rbx, rsp, rbp, r12, r13, r14, r15];
         debug!("Register values: {:?}", registers);
-        return registers;
+        registers
     }
 
     /// Set an address of an object reference as static root.
@@ -114,10 +114,9 @@ impl Stack {
         debug!("There are {} possible static roots: {:?}",
                self.static_roots.len(),
                self.static_roots.iter().map(|o| unsafe{ **o }).collect::<Vec<GCObjectRef>>());
-        return (0..stack_size)
-            .map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
-            .filter(|o| !o.is_null())
-            .chain(self.static_roots.iter().map(|o| unsafe{ **o }))
-            .collect();
+        (0..stack_size).map(|o| unsafe{ *(top.offset(o as isize) as *const GCObjectRef) })
+                       .filter(|o| !o.is_null())
+                       .chain(self.static_roots.iter().map(|o| unsafe{ **o }))
+                       .collect()
     }
 }
