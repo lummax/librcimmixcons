@@ -10,6 +10,7 @@ use gc_object::GCObjectRef;
 mod pthread {
     extern crate libc;
 
+    #[allow(mut_mut)]
     extern {
         pub fn pthread_self() -> libc::pthread_t;
         pub fn pthread_getattr_np(native: libc::pthread_t,
@@ -34,6 +35,7 @@ pub struct Stack {
 
 /// Abstractions over the stack to scan the stack and the registers for
 /// garbage collection roots.
+#[allow(inline_always)]
 impl Stack {
     /// Create a new `Stack`.
     pub fn new() -> Stack {
