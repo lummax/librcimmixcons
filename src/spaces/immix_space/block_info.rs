@@ -341,10 +341,10 @@ impl BlockInfo{
             };
             if increment {
                 debug!("Incremented line count for line {} to {}", line,
-                       self.line_counter.get(&line).unwrap());
+                       self.line_counter.get(&line).expect("a line count"));
             } else {
                 debug!("Decremented line count for line {} to {}", line,
-                       self.line_counter.get(&line).unwrap());
+                       self.line_counter.get(&line).expect("a line count"));
             }
         }
     }
