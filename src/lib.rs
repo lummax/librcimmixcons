@@ -5,9 +5,6 @@
 #![feature(drain)]
 #![feature(link_llvm_intrinsics)]
 
-#![feature(plugin)]
-#![plugin(clippy)]
-
 //! This is an implementation of the `RCImmixCons` garbage collector.
 //!
 //! A conservative reference counting garbage collector with the immix heap
