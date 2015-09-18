@@ -123,7 +123,7 @@ impl LargeObjectSpace  {
 
 impl Drop for LargeObjectSpace {
     fn drop(&mut self) {
-        for object in self.objects.iter() {
+        for object in &self.objects {
             unsafe{ libc::free(*object as *mut libc::c_void); }
         }
     }

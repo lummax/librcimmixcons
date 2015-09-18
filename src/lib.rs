@@ -2,7 +2,6 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 #![feature(asm)]
-#![feature(box_raw)]
 #![feature(drain)]
 #![feature(link_llvm_intrinsics)]
 

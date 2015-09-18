@@ -230,7 +230,7 @@ impl Collector {
             if unsafe{ (*block).is_empty() } {
                 if cfg!(feature = "valgrind") {
                     let block_object_map = unsafe{ (*block).get_object_map() };
-                    for &object in block_object_map.iter() {
+                    for &object in &block_object_map {
                         valgrind_freelike!(object);
                     }
                 }
@@ -267,8 +267,8 @@ impl Collector {
     /// evacuation candidate.
     fn establish_hole_threshhold(&self, evac_headroom: usize) -> usize {
         let mut available_histogram : VecMap<usize> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
-        for block in self.all_blocks.iter() {
-            let (holes, free_lines) = unsafe{ (**block).count_holes_and_available_lines() };
+        for &block in &self.all_blocks {
+            let (holes, free_lines) = unsafe{ (*block).count_holes_and_available_lines() };
             if available_histogram.contains_key(&(holes as usize)) {
                 if let Some(val) = available_histogram.get_mut(&(holes as usize)) {
                     *val += free_lines;
