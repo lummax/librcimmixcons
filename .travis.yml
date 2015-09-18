@@ -1,6 +1,6 @@
 language: rust
 rust: nightly
-sudo: false
+sudo: required
 
 addons:
   apt:
@@ -11,5 +11,5 @@ addons:
 script:
     - make check CARGO_OPTS=--verbose
     - make all CARGO_OPTS=--release
-    - make install
+    - sudo make install
     - make check-install
