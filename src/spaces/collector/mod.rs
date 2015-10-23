@@ -278,7 +278,7 @@ impl Collector {
         let mut required_lines = 0;
         let mut available_lines = evac_headroom * (NUM_LINES_PER_BLOCK - 1);
 
-        for threshold in (0..NUM_LINES_PER_BLOCK) {
+        for threshold in 0..NUM_LINES_PER_BLOCK {
             required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
             available_lines = available_lines.saturating_sub(*available_histogram.get(&threshold).unwrap_or(&0));
             if available_lines <= required_lines {

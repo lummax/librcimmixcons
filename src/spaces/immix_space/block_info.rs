@@ -93,7 +93,7 @@ impl BlockInfo {
     /// Create a new `BlockInfo`.
     pub fn new() -> BlockInfo {
         let mut line_counter = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
-        for index in (0..NUM_LINES_PER_BLOCK) {
+        for index in 0..NUM_LINES_PER_BLOCK {
             line_counter.insert(index, 0);
         }
         BlockInfo {
@@ -217,7 +217,7 @@ impl BlockInfo {
 
     /// Clear the line counter map.
     pub fn clear_line_counts(&mut self) {
-        for index in (0..NUM_LINES_PER_BLOCK) {
+        for index in 0..NUM_LINES_PER_BLOCK {
             self.line_counter.insert(index, 0);
         }
     }
@@ -255,7 +255,7 @@ impl BlockInfo {
         debug!("Scanning block {:p} for a hole with last_high_offset {}",
                self, last_high_index);
         let mut low_index = NUM_LINES_PER_BLOCK - 1;
-        for index in ((last_high_index + 1)..NUM_LINES_PER_BLOCK) {
+        for index in (last_high_index + 1)..NUM_LINES_PER_BLOCK {
             if self.line_counter.get(&index).map_or(true, |c| *c == 0) {
                 // +1 to skip the next line in case an object straddles lines
                 low_index = index + 1;
@@ -263,7 +263,7 @@ impl BlockInfo {
             }
         }
         let mut high_index = NUM_LINES_PER_BLOCK;
-        for index in (low_index..NUM_LINES_PER_BLOCK) {
+        for index in low_index..NUM_LINES_PER_BLOCK {
             if self.line_counter.get(&index).map_or(false, |c| *c != 0) {
                 high_index = index;
                 break;
