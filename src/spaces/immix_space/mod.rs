@@ -155,7 +155,6 @@ impl ImmixSpace {
 
     /// Get all block managed by all allocators, draining any local
     /// collections.
-    #[allow(needless_return)]
     pub fn get_all_blocks(&mut self) -> Vec<*mut BlockInfo> {
         let mut normal_blocks = self.allocator.get_all_blocks();
         let mut overflow_blocks = self.overflow_allocator.get_all_blocks();
