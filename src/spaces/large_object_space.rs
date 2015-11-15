@@ -81,7 +81,7 @@ impl LargeObjectSpace  {
         }
         let size = unsafe{ (*rtti).object_size() };
         debug!("Request to allocate an object of size {}", size);
-        let object = unsafe{ libc::malloc(size as u64) } as GCObjectRef;
+        let object = unsafe{ libc::malloc(size) } as GCObjectRef;
         if !object.is_null() {
             unsafe { ptr::write(object, GCObject::new(rtti, self.current_live_mark)); }
             self.objects.insert(object);
