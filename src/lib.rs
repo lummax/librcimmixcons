@@ -2,7 +2,6 @@
 // Licensed under MIT (http://opensource.org/licenses/MIT)
 
 #![feature(asm)]
-#![feature(drain)]
 #![feature(link_llvm_intrinsics)]
 
 //! This is an implementation of the `RCImmixCons` garbage collector.
