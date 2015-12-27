@@ -14,7 +14,7 @@ use constants::LINE_SIZE;
 use gc_object::GCObjectRef;
 
 /// A type alias for the block, the current low and high offset.
-type BlockTuple = (*mut BlockInfo, u16, u16);
+pub type BlockTuple = (*mut BlockInfo, u16, u16);
 
 /// Trait for the allocators in the immix space.
 ///

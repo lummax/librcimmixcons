@@ -67,7 +67,6 @@ pub struct GCRTTI {
 /// of size `rtti.members`.
 #[repr(C)]
 #[derive(PartialEq)]
-#[allow(raw_pointer_derive)]
 pub struct GCObject {
     /// The `GCHeader` for this object. This is initialized by the allocation
     /// routine.
