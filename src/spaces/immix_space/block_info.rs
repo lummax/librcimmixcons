@@ -35,12 +35,12 @@ impl ObjectMap {
 
     /// Unset the address as a valid object.
     fn unset_object(&mut self, object: GCObjectRef) {
-        self.set.remove(&ObjectMap::index(object));
+        self.set.remove(ObjectMap::index(object));
     }
 
     /// Return `true` is the address is a valid object.
     fn is_object(&self, object: GCObjectRef) -> bool {
-        self.set.contains(&ObjectMap::index(object))
+        self.set.contains(ObjectMap::index(object))
     }
 
     /// Update this `ObjectMap` with the difference of this `ObjectMap` and
