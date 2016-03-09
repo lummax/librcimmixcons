@@ -256,7 +256,7 @@ impl BlockInfo {
                self, last_high_index);
         let mut low_index = NUM_LINES_PER_BLOCK - 1;
         for index in (last_high_index + 1)..NUM_LINES_PER_BLOCK {
-            if self.line_counter.get(&index).map_or(true, |c| *c == 0) {
+            if self.line_counter.get(index).map_or(true, |c| *c == 0) {
                 // +1 to skip the next line in case an object straddles lines
                 low_index = index + 1;
                 break;
@@ -264,7 +264,7 @@ impl BlockInfo {
         }
         let mut high_index = NUM_LINES_PER_BLOCK;
         for index in low_index..NUM_LINES_PER_BLOCK {
-            if self.line_counter.get(&index).map_or(false, |c| *c != 0) {
+            if self.line_counter.get(index).map_or(false, |c| *c != 0) {
                 high_index = index;
                 break;
             }
@@ -341,10 +341,10 @@ impl BlockInfo{
             };
             if increment {
                 debug!("Incremented line count for line {} to {}", line,
-                       self.line_counter.get(&line).expect("a line count"));
+                       self.line_counter.get(line).expect("a line count"));
             } else {
                 debug!("Decremented line count for line {} to {}", line,
-                       self.line_counter.get(&line).expect("a line count"));
+                       self.line_counter.get(line).expect("a line count"));
             }
         }
     }

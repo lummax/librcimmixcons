@@ -240,11 +240,11 @@ impl Collector {
             } else {
                 unsafe{ (*block).count_holes(); }
                 let (holes, marked_lines) = unsafe{ (*block).count_holes_and_marked_lines() };
-                if self.mark_histogram.contains_key(&(holes as usize)) {
-                    if let Some(val) = self.mark_histogram.get_mut(&(holes as usize)) {
+                if self.mark_histogram.contains_key(holes) {
+                    if let Some(val) = self.mark_histogram.get_mut(holes) {
                         *val += marked_lines;
                     }
-                } else { self.mark_histogram.insert(holes as usize, marked_lines); }
+                } else { self.mark_histogram.insert(holes, marked_lines); }
                 debug!("Found {} holes and {} marked lines in block {:p}",
                        holes, marked_lines, block);
                 match holes {
@@ -269,18 +269,18 @@ impl Collector {
         let mut available_histogram : VecMap<usize> = VecMap::with_capacity(NUM_LINES_PER_BLOCK);
         for &block in &self.all_blocks {
             let (holes, free_lines) = unsafe{ (*block).count_holes_and_available_lines() };
-            if available_histogram.contains_key(&(holes as usize)) {
-                if let Some(val) = available_histogram.get_mut(&(holes as usize)) {
+            if available_histogram.contains_key(holes) {
+                if let Some(val) = available_histogram.get_mut(holes) {
                     *val += free_lines;
                 }
-            } else { available_histogram.insert(holes as usize, free_lines); }
+            } else { available_histogram.insert(holes, free_lines); }
         }
         let mut required_lines = 0;
         let mut available_lines = evac_headroom * (NUM_LINES_PER_BLOCK - 1);
 
         for threshold in 0..NUM_LINES_PER_BLOCK {
-            required_lines += *self.mark_histogram.get(&threshold).unwrap_or(&0);
-            available_lines = available_lines.saturating_sub(*available_histogram.get(&threshold).unwrap_or(&0));
+            required_lines += *self.mark_histogram.get(threshold).unwrap_or(&0);
+            available_lines = available_lines.saturating_sub(*available_histogram.get(threshold).unwrap_or(&0));
             if available_lines <= required_lines {
                 return threshold;
             }
